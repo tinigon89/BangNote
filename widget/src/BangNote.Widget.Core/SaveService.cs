@@ -1,0 +1,93 @@
+namespace BangNote.Widget.Core;
+
+public abstract record SaveResult
+{
+    public sealed record Saved(NoteDto Note) : SaveResult;
+    public sealed record Queued(int Pending, string? Reason = null) : SaveResult;
+    public sealed record Rejected(string Message) : SaveResult;
+}
+
+public sealed record FlushResult(int Sent, int Dropped, bool Blocked);
+
+public sealed class SaveService(OfflineQueue queue, Func<DateTimeOffset>? now = null)
+{
+    public const int MaxContent = 20000;
+    private readonly Func<DateTimeOffset> _now = now ?? (() => DateTimeOffset.UtcNow);
+    private readonly SemaphoreSlim _flushLock = new(1, 1);
+
+    public IApiClient? Api { get; set; }
+
+    public int Pending => queue.Count;
+
+    public async Task<SaveResult> SaveAsync(string text, CancellationToken ct = default)
+    {
+        var content = text.Trim();
+        if (content.Length == 0) return new SaveResult.Rejected("Nội dung trống");
+        if (content.Length > MaxContent) return new SaveResult.Rejected($"Nội dung tối đa {MaxContent} ký tự");
+
+        var api = Api;
+        if (api is null) return Enqueue(content, "Chưa cài đặt — đã giữ lại, sẽ gửi khi cài đặt xong");
+        try
+        {
+            return new SaveResult.Saved(await api.CreateNoteAsync(content, ct));
+        }
+        catch (ApiUnavailableException)
+        {
+            return Enqueue(content, null);
+        }
+        catch (ApiRejectedException ex) when (ex.StatusCode == 401)
+        {
+            return Enqueue(content, "Sai API key — đã giữ lại, sẽ gửi khi sửa key");
+        }
+        catch (ApiRejectedException ex)
+        {
+            return new SaveResult.Rejected(ex.Message);
+        }
+    }
+
+    private SaveResult.Queued Enqueue(string content, string? reason)
+    {
+        queue.Enqueue(new QueuedNote(content, _now()));
+        return new SaveResult.Queued(queue.Count, reason);
+    }
+
+    /// <summary>Gửi lại hàng đợi theo thứ tự. Dừng khi mất mạng hoặc sai key; bỏ item bị server từ chối vì lý do khác.</summary>
+    public async Task<FlushResult> FlushAsync(CancellationToken ct = default)
+    {
+        var api = Api;
+        if (api is null) return new FlushResult(0, 0, true);
+        if (!await _flushLock.WaitAsync(0, ct)) return new FlushResult(0, 0, false);
+
+        int sent = 0, dropped = 0;
+        try
+        {
+            while (queue.Peek() is { } item)
+            {
+                try
+                {
+                    await api.CreateNoteAsync(item.Content, ct);
+                    queue.RemoveFirst();
+                    sent++;
+                }
+                catch (ApiUnavailableException)
+                {
+                    return new FlushResult(sent, dropped, true);
+                }
+                catch (ApiRejectedException ex) when (ex.StatusCode == 401)
+                {
+                    return new FlushResult(sent, dropped, true);
+                }
+                catch (ApiRejectedException)
+                {
+                    queue.RemoveFirst();
+                    dropped++;
+                }
+            }
+            return new FlushResult(sent, dropped, false);
+        }
+        finally
+        {
+            _flushLock.Release();
+        }
+    }
+}
