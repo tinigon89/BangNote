@@ -85,7 +85,7 @@ Header bắt buộc: `Authorization: Bearer <API_KEY>`. Sai/thiếu → `401`.
 | `POST` | `/api/notes` | `{content, source, tagIds?, sourceUrl?, sourceTitle?}` → `201 {id, content, tags:[…], createdAt}` |
 | `PUT` | `/api/notes/:id/tags` | `{tagIds}` → `200 {id, tags:[…]}`; note không tồn tại → `404` |
 
-Validation (zod): `content` được trim, rỗng → `400`, > 20 000 ký tự → `400`; `source` ∉ danh sách → `400`. Lỗi luôn trả `{error: string}`. Lỗi không lường trước → `500` (log server, không lộ chi tiết).
+Validation (zod): `content` được trim, rỗng → `400`, > 20 000 ký tự → `400`; `source` ∉ danh sách → `400`; `sourceUrl`/`sourceTitle` dài quá 2000/500 ký tự được cắt bớt (không từ chối). Lỗi luôn trả `{error: string}`. Lỗi không lường trước → `500` (log server, không lộ chi tiết).
 
 CORS: không cần — extension gọi từ service worker với `host_permissions`, widget không phải trình duyệt.
 
@@ -96,7 +96,7 @@ CORS: không cần — extension gọi từ service worker với `host_permissio
 - Update từ user khác `TELEGRAM_OWNER_ID` → trả `200`, không làm gì (trừ `/start`, xem §6).
 - Luôn trả `200` cho update hợp lệ kể cả khi xử lý lỗi (tránh Telegram gửi lại vô hạn); lỗi được log và bot nhắn "❌ Lỗi khi lưu".
 
-`POST /api/telegram/setup` (cần phiên admin): gọi `setWebhook` với URL `${origin}/api/telegram/webhook` và secret; trả kết quả `getWebhookInfo`.
+Đăng ký webhook: nút *Đăng ký webhook* trên `/settings` (server action, cần phiên admin) gọi `setWebhook` với URL `${origin}/api/telegram/webhook` và secret; trang hiển thị kết quả `getWebhookInfo`.
 
 ### 4.3 Web admin
 
@@ -124,7 +124,7 @@ Next.js + Tailwind, responsive (dùng được trên điện thoại).
   - Tìm kiếm không dấu; lọc theo tag (nhiều tag, logic **OR**, gồm "Chưa phân loại"); lọc theo nguồn. Bộ lọc nằm trên query string để có thể bookmark.
   - Thẻ ghi chú: nội dung (thu gọn > 6 dòng, bấm mở), chip tag (bấm mở bộ chọn tag), nguồn + thời gian tương đối, link `source_url` (hiển thị `source_title`), nút Copy / Sửa (sửa nội dung tại chỗ) / Xoá (có xác nhận).
   - Chọn nhiều → *Chuyển tag* (thay toàn bộ tag qua `setNoteTags`) hoặc *Xoá*.
-  - Mới nhất trước, 50 note/trang, nút "Tải thêm" (phân trang theo cursor `id`).
+  - Mới nhất trước, 50 note; nút "Tải thêm" tăng `limit` trên URL thêm 50 (tối đa 500).
 - **`/tags`** — bảng tag: tên, màu (bảng 10 màu có sẵn), số note; tạo / đổi tên / đổi màu / xoá (tag mặc định không có nút xoá). Tên trùng → báo lỗi.
 - **`/settings`** — trạng thái webhook (`getWebhookInfo`), nút "Đăng ký webhook", hướng dẫn cài extension & widget, nút đăng xuất.
 
@@ -188,7 +188,7 @@ Cấu trúc code: `ApiClient` (HTTP), `OfflineQueue`, `SettingsStore`, `TagCache
 **Web (Vitest)**
 - Unit: `setNoteTags` (đủ 3 nhánh + xoá tag), chuẩn hoá/tách hashtag, dựng inline keyboard, parse `callback_data`.
 - Tích hợp: route handler `/api/notes`, `/api/tags`, `/api/notes/:id/tags` (401/400/404/201), webhook Telegram (secret sai, người lạ, text có hashtag, callback bật/tắt, xoá) với Bot API được mock.
-- DB test chạy trên **PGlite** (Postgres in-memory) + migration thật; nếu PGlite không có `unaccent` thì test tìm kiếm chạy trên một branch Neon riêng (`DATABASE_URL_TEST`), các test khác vẫn chạy PGlite.
+- DB test chạy trên **PGlite** (Postgres in-memory, có extension `unaccent`) + migration thật.
 
 **Widget (xUnit)**: `OfflineQueue` (thêm/gửi lại/giữ thứ tự/file hỏng), `SettingsStore` (DPAPI round-trip), `ApiClient` với `HttpMessageHandler` giả (201, 401, timeout → vào hàng đợi).
 
