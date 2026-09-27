@@ -14,7 +14,7 @@ public sealed class TrayIcon : IDisposable
         startupItem.CheckedChanged += (_, _) => StartupRegistration.SetEnabled(startupItem.Checked);
 
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Hiện / Ẩn", null, (_, _) => window.ToggleVisibility());
+        menu.Items.Add($"Hiện / Ẩn ({GlobalHotkey.Label})", null, (_, _) => window.ToggleVisibility());
         menu.Items.Add("Cài đặt…", null, (_, _) => app.OpenSettings());
         menu.Items.Add(startupItem);
         menu.Items.Add(new Forms.ToolStripSeparator());
@@ -49,6 +49,9 @@ public sealed class TrayIcon : IDisposable
         }
         return Drawing.Icon.FromHandle(bitmap.GetHicon());
     }
+
+    public void ShowWarning(string message) =>
+        _icon.ShowBalloonTip(5000, "BangNote", message, Forms.ToolTipIcon.Warning);
 
     public void Dispose()
     {

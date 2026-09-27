@@ -50,5 +50,6 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 - [ ] Mất mạng → cam "đang chờ gửi"; có mạng lại → tự gửi trong ≤ 60 giây.
 - [ ] Sai API key → đỏ, ghi chú vẫn được giữ; sửa key → được gửi.
 - [ ] Vị trí widget được nhớ sau khi mở lại; chạy lần hai không mở thêm cửa sổ.
+- [ ] Alt+Insert khi đang ở app khác → widget ẩn; bấm lại → hiện và được focus (Ctrl+V dùng được ngay).
 - [ ] Khởi động cùng Windows bật/tắt được; Thoát xoá icon khay.
 - [ ] `queue.json` hỏng → app vẫn chạy, có `queue.json.bad`.

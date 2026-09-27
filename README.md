@@ -47,6 +47,7 @@ dotnet publish src/BangNote.Widget -c Release -r win-x64 -p:PublishSingleFile=tr
 Chép `publish/BangNote.Widget.exe` vào nơi cố định (vd: `C:\Tools\BangNote\`) rồi chạy. Lần đầu nhập **URL server** và **API key** → *Kiểm tra* → *Lưu*. Bật "Khởi động cùng Windows" trong Cài đặt hoặc menu khay.
 
 - Kéo thả chữ đã chọn vào ô nổi, hoặc bấm vào ô rồi `Ctrl+V`.
+- **Alt+Insert** (ở bất kỳ app nào) để ẩn/hiện widget. Laptop có thể cần bấm kèm `Fn`. Nếu app khác đã chiếm tổ hợp này, widget báo ở khay và bạn dùng icon khay thay thế.
 - Sau khi lưu, bấm nút tag trong 5 giây để chuyển tag.
 - Mất mạng / sai key: ghi chú được giữ ở `%AppData%\BangNote\queue.json` và tự gửi lại mỗi phút.
 - Không kéo được từ app chạy bằng quyền Administrator (Windows chặn).

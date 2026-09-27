@@ -3,6 +3,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using BangNote.Widget.Core;
 
@@ -18,6 +19,7 @@ public partial class App : Application
     private Mutex? _mutex;
     private bool _ownsMutex;
     private TrayIcon? _tray;
+    private GlobalHotkey? _hotkey;
     private MainWindow? _window;
 
     public SettingsStore SettingsStore { get; } = new(Path.Combine(DataDir, "settings.json"));
@@ -42,6 +44,9 @@ public partial class App : Application
         _window = new MainWindow(this);
         _tray = new TrayIcon(this, _window);
         _window.Show();
+        _hotkey = new GlobalHotkey(HwndSource.FromHwnd(new WindowInteropHelper(_window).Handle), _window.ToggleVisibility);
+        if (!_hotkey.IsRegistered)
+            _tray.ShowWarning($"{GlobalHotkey.Label} đang bị ứng dụng khác dùng — dùng icon khay để ẩn/hiện widget.");
         if (!Settings.IsConfigured) OpenSettings();
     }
 
@@ -90,6 +95,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _hotkey?.Dispose();
         _tray?.Dispose();
         if (_ownsMutex) _mutex?.ReleaseMutex();
         _mutex?.Dispose();
