@@ -47,3 +47,22 @@ describe('render phía server của trang ghi chú', () => {
     expect(quick).not.toContain('Chưa phân loại');
   });
 });
+
+import { TagTable } from '@/components/TagTable';
+
+describe('render trang Tag', () => {
+  it('tag mặc định không có nút Xoá, tag thường có; hiện số ghi chú', () => {
+    const html = renderToString(
+      createElement(TagTable, {
+        tags: [
+          { ...DEF, noteCount: 3 },
+          { ...LS, noteCount: 1 },
+        ],
+        colors: ['#94a3b8', '#ef4444'],
+      }),
+    ).replaceAll('<!-- -->', '');
+    expect(html).toContain('mặc định');
+    expect(html).toContain('3 ghi chú');
+    expect(html.match(/>Xoá</g)).toHaveLength(1);
+  });
+});
