@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cài đặt BangNote</title>
+    <style>
+      body { font: 14px system-ui, sans-serif; max-width: 460px; margin: 40px auto; padding: 0 16px; color: #0f172a; }
+      h1 { font-size: 20px; }
+      label { display: block; margin: 16px 0 4px; font-weight: 600; }
+      input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+      .row { display: flex; gap: 8px; margin-top: 20px; }
+      button { padding: 8px 16px; border-radius: 8px; border: 1px solid #0f172a; background: #0f172a; color: #fff; font: inherit; cursor: pointer; }
+      button.secondary { background: #fff; color: #0f172a; }
+      #status { margin-top: 16px; min-height: 20px; }
+      .ok { color: #15803d; } .err { color: #b91c1c; }
+      .hint { color: #64748b; font-size: 12px; margin-top: 24px; }
+    </style>
+  </head>
+  <body>
+    <h1>Cài đặt BangNote</h1>
+    <form id="form">
+      <label for="serverUrl">URL server</label>
+      <input id="serverUrl" placeholder="https://bangnote.vercel.app" required />
+      <label for="apiKey">API key</label>
+      <input id="apiKey" type="password" required />
+      <div class="row">
+        <button type="submit">Lưu</button>
+        <button type="button" id="test" class="secondary">Kiểm tra kết nối</button>
+      </div>
+    </form>
+    <div id="status"></div>
+    <p class="hint">
+      Bôi đen chữ → chuột phải → <b>Gửi tới BangNote</b>. Phím tắt <b>Alt+Shift+S</b> lưu vào "Chưa phân loại"
+      (đổi tại chrome://extensions/shortcuts).
+    </p>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
