@@ -3,15 +3,17 @@ import type { Note } from '@/lib/notes/types';
 
 export const SEPARATOR = '-'.repeat(40);
 
-export function noteHeader(note: Note): string {
+/** `detailed = false` → chỉ còn số `#id` (bỏ tag, ngày giờ, link nguồn). */
+export function noteHeader(note: Note, detailed = true): string {
+  if (!detailed) return `#${note.id}`;
   return [`#${note.id}`, note.tags.map((t) => t.name).join(', '), vnDateTimeString(note.createdAt), note.sourceUrl]
     .filter(Boolean)
     .join(' · ');
 }
 
-export function formatNotesTxt(notes: Note[]): string {
+export function formatNotesTxt(notes: Note[], detailed = true): string {
   if (!notes.length) return '';
-  return notes.map((n) => `${noteHeader(n)}\n${n.content}\n`).join(`\n${SEPARATOR}\n\n`);
+  return notes.map((n) => `${noteHeader(n, detailed)}\n${n.content}\n`).join(`\n${SEPARATOR}\n\n`);
 }
 
 /** Nội dung dùng cho nút Copy nhiều ghi chú — chỉ nội dung, cách nhau một dòng trống. */

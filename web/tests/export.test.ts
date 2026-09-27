@@ -41,6 +41,13 @@ describe('text export', () => {
     expect(formatNotesTxt([])).toBe('');
   });
 
+  it('bỏ thông tin → dòng đầu chỉ còn số #', () => {
+    expect(noteHeader(n1, false)).toBe('#12');
+    expect(formatNotesTxt([n1, n2], false)).toBe(
+      ['#12', 'Trận Bạch Đằng', 'năm 938', '', '----------------------------------------', '', '#13', 'Hải Thượng Lãn Ông', ''].join('\n'),
+    );
+  });
+
   it('copy: chỉ nội dung, cách nhau một dòng trống', () => {
     expect(joinForCopy([n1, n2])).toBe('Trận Bạch Đằng\nnăm 938\n\nHải Thượng Lãn Ông');
   });
@@ -58,6 +65,13 @@ describe('docx export', () => {
     for (const text of ['#12 · Lịch sử, Y học · 27/09/2026 14:05', 'Trận Bạch Đằng', 'năm 938', 'Hải Thượng Lãn Ông']) {
       expect(xml).toContain(text);
     }
+  });
+
+  it('bỏ thông tin → Word không chứa tag, ngày, link nhưng vẫn có số #', async () => {
+    const xml = await (await JSZip.loadAsync(await buildNotesDocx([n1], false))).file('word/document.xml')!.async('string');
+    expect(xml).toContain('>#12<');
+    for (const text of ['Lịch sử', '27/09/2026', 'wikipedia']) expect(xml).not.toContain(text);
+    expect(xml).toContain('Trận Bạch Đằng');
   });
 
   it('không có ghi chú → vẫn là file hợp lệ', async () => {

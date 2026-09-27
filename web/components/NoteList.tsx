@@ -11,12 +11,14 @@ import { TagPicker } from './TagPicker';
 type Drag = { anchorId: number; base: Set<number>; select: boolean };
 
 const EDGE = 48; // px gần mép màn hình thì tự cuộn khi đang kéo chọn
+const DETAIL_KEY = 'bn-export-detail';
 
 export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Tag[]; exportQuery: string }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string>();
   const [copied, setCopied] = useState(false);
+  const [detailed, setDetailed] = useState(true);
   const [pending, startTransition] = useTransition();
 
   const visibleIds = notes.map((n) => n.id);
@@ -26,6 +28,23 @@ export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Ta
   const anchorRef = useRef<number | null>(null);
 
   const chosen = visibleIds.filter((id) => selected.has(id));
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(DETAIL_KEY) === '0') setDetailed(false);
+    } catch {
+      // localStorage bị chặn → dùng mặc định
+    }
+  }, []);
+
+  const changeDetailed = (value: boolean) => {
+    setDetailed(value);
+    try {
+      localStorage.setItem(DETAIL_KEY, value ? '1' : '0');
+    } catch {
+      // bỏ qua
+    }
+  };
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
@@ -87,7 +106,7 @@ export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Ta
   };
 
   const exportHref = (format: 'txt' | 'docx') => {
-    const params = [`format=${format}`, exportQuery, ...chosen.map((id) => `id=${id}`)].filter(Boolean);
+    const params = [`format=${format}`, exportQuery, ...chosen.map((id) => `id=${id}`), detailed ? '' : 'detail=0'].filter(Boolean);
     return `/api/export?${params.join('&')}`;
   };
   const exportScope = chosen.length ? `${chosen.length} đã chọn` : 'tất cả kết quả';
@@ -122,7 +141,11 @@ export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Ta
             Xoá
           </button>
         </span>
-        <span className="ml-auto flex gap-2" title={`Xuất ${exportScope}`}>
+        <span className="ml-auto flex flex-wrap items-center gap-2" title={`Xuất ${exportScope}`}>
+          <label className="flex items-center gap-1" title="Bỏ tick: mỗi ghi chú chỉ giữ số #xx và nội dung">
+            <input type="checkbox" checked={detailed} onChange={(e) => changeDetailed(e.target.checked)} />
+            Kèm tag, ngày giờ, link
+          </label>
           <a href={exportHref('txt')} download className="rounded-lg border bg-white px-3 py-1">
             Xuất TXT
           </a>

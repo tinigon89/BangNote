@@ -2,12 +2,12 @@ import { BorderStyle, Document, Packer, Paragraph, TextRun } from 'docx';
 import type { Note } from '@/lib/notes/types';
 import { noteHeader } from './text';
 
-function noteParagraphs(note: Note, isLast: boolean): Paragraph[] {
+function noteParagraphs(note: Note, isLast: boolean, detailed: boolean): Paragraph[] {
   const lines = note.content.split(/\r?\n/);
   return [
     new Paragraph({
       spacing: { before: 240, after: 80 },
-      children: [new TextRun({ text: noteHeader(note), size: 18, color: '64748B' })],
+      children: [new TextRun({ text: noteHeader(note, detailed), size: 18, color: '64748B' })],
     }),
     new Paragraph({
       spacing: { after: 240 },
@@ -17,9 +17,9 @@ function noteParagraphs(note: Note, isLast: boolean): Paragraph[] {
   ];
 }
 
-export async function buildNotesDocx(notes: Note[]): Promise<Buffer> {
+export async function buildNotesDocx(notes: Note[], detailed = true): Promise<Buffer> {
   const children = notes.length
-    ? notes.flatMap((note, i) => noteParagraphs(note, i === notes.length - 1))
+    ? notes.flatMap((note, i) => noteParagraphs(note, i === notes.length - 1, detailed))
     : [new Paragraph({ children: [new TextRun('Không có ghi chú nào.')] })];
   const doc = new Document({
     creator: 'BangNote',

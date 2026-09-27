@@ -15,6 +15,7 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 - [ ] Kéo chuột dọc cột ô chọn bên trái → chọn nhiều thẻ; kéo từ thẻ đang chọn → bỏ chọn; Shift+click chọn cả đoạn; kéo trên chữ vẫn bôi đen bình thường.
 - [ ] Copy (n) chép nội dung các thẻ đã chọn, cách nhau một dòng trống.
 - [ ] Xuất TXT / Xuất Word: không chọn gì → toàn bộ kết quả lọc; có chọn → chỉ các thẻ đã chọn; file Word mở được trong Word.
+- [ ] Bỏ tick "Kèm tag, ngày giờ, link" → file xuất chỉ còn `#xx` + nội dung; tải lại trang vẫn nhớ lựa chọn.
 - [ ] Trang Tag: tạo, đổi tên, đổi màu, xoá; tạo trùng khác dấu bị chặn; tag mặc định không xoá được.
 - [ ] Trang Cài đặt: đủ ✅ biến môi trường; webhook ✓ đúng.
 - [ ] Mở trên điện thoại: bố cục không vỡ, không cuộn ngang.

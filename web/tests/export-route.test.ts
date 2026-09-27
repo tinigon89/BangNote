@@ -69,6 +69,15 @@ describe('GET /api/export', () => {
     expect(body).not.toContain('cũ');
   });
 
+  it('detail=0 → chỉ giữ số #, bỏ tag/ngày giờ/link', async () => {
+    const ls = await createTag(t.db, { name: 'Lịch sử' });
+    const n = await createNote(t.db, { content: 'Bạch Đằng', source: 'extension', tagIds: [ls.id], sourceUrl: 'https://a.b/x' });
+    const full = await (await GET(req('format=txt'))).text();
+    expect(full.split('\n')[0]).toContain('Lịch sử');
+    const clean = await (await GET(req('format=txt&detail=0'))).text();
+    expect(clean).toBe(`#${n.id}\nBạch Đằng\n`);
+  });
+
   it('DOCX: đúng content-type, là file Word chứa nội dung', async () => {
     await createNote(t.db, { content: 'Hải Thượng Lãn Ông', source: 'web' });
     const res = await GET(req('format=docx'));

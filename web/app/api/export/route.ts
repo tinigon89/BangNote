@@ -9,7 +9,10 @@ import { MAX_LIST_LIMIT, listNotes } from '@/lib/notes/notes';
 
 const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-/** Xuất ghi chú: `id` lặp lại → chỉ các ghi chú đó; không có → toàn bộ ghi chú khớp bộ lọc (tối đa 5000). */
+/**
+ * Xuất ghi chú: `id` lặp lại → chỉ các ghi chú đó; không có → toàn bộ ghi chú khớp bộ lọc (tối đa 5000).
+ * `detail=0` → dòng đầu mỗi ghi chú chỉ còn `#id`.
+ */
 export async function GET(req: NextRequest) {
   if (!verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value)) return jsonError(401, 'Chưa đăng nhập');
 
@@ -23,13 +26,14 @@ export async function GET(req: NextRequest) {
     const listFilter = ids.length ? { ids, sort: filters.sort } : toListFilter(filters);
     const { notes } = await listNotes(getDb(), { ...listFilter, limit: MAX_LIST_LIMIT });
 
+    const detailed = params.get('detail') !== '0';
     const disposition = `attachment; filename="${exportFilename(format)}"`;
     if (format === 'txt') {
-      return new Response(formatNotesTxt(notes), {
+      return new Response(formatNotesTxt(notes, detailed), {
         headers: { 'content-type': 'text/plain; charset=utf-8', 'content-disposition': disposition },
       });
     }
-    return new Response(new Uint8Array(await buildNotesDocx(notes)), {
+    return new Response(new Uint8Array(await buildNotesDocx(notes, detailed)), {
       headers: { 'content-type': DOCX_TYPE, 'content-disposition': disposition },
     });
   } catch (err) {

@@ -34,6 +34,7 @@ describe('render phía server của trang ghi chú', () => {
     expect(html).toContain('href="/api/export?format=txt&amp;tag=2"');
     expect(html).toContain('href="/api/export?format=docx&amp;tag=2"');
     expect(html).toContain('data-note-id="7"');
+    expect(html).toContain('Kèm tag, ngày giờ, link');
   });
 
   it('danh sách rỗng', () => {
