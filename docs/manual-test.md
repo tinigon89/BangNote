@@ -25,3 +25,13 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 - [ ] Bấm 🗑 Xoá → tin nhắn đổi thành "🗑 Đã xoá #n", web không còn ghi chú.
 - [ ] `/tags`, `/recent` trả kết quả đúng.
 - [ ] Tài khoản Telegram khác gửi text → bot im lặng; `/start` → chỉ trả ID.
+
+## Extension
+- [ ] Load unpacked không lỗi trên Chrome và Edge.
+- [ ] Tuỳ chọn: URL có `/` cuối được chuẩn hoá; URL thiếu `https://` báo lỗi; "Kiểm tra kết nối" báo số tag.
+- [ ] Menu chuột phải hiện đủ tag; tag tên có `&` hiển thị đúng.
+- [ ] Lưu có tag / không tag; giữ xuống dòng; có link + tiêu đề trang.
+- [ ] `Alt+Shift+S` lưu vào "Chưa phân loại"; không bôi đen gì → thông báo "Không có chữ nào được chọn".
+- [ ] "↻ Làm mới danh sách tag" cập nhật tag mới tạo.
+- [ ] Trang PDF: vẫn lưu được.
+- [ ] Server tắt → badge đỏ + "Không kết nối được server"; key sai → "API key không hợp lệ".

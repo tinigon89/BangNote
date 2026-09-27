@@ -26,6 +26,15 @@ Gom nhanh các đoạn text từ điện thoại (bot Telegram), trình duyệt 
 
 Khi thêm migration mới sau này: tạo `web/db/migrations/000N_ten.sql` rồi chạy lại `npm run db:migrate`.
 
+## Cài extension (Chrome / Edge)
+
+1. Mở `chrome://extensions` (Edge: `edge://extensions`) → bật **Developer mode**.
+2. **Load unpacked** → chọn thư mục `extension/`.
+3. Bấm icon BangNote → nhập **URL server** (domain Vercel) và **API key** (biến `API_KEY`) → **Kiểm tra kết nối** → chấp nhận quyền → **Lưu**.
+4. Dùng: bôi đen → chuột phải → **Gửi tới BangNote** → chọn tag. Phím tắt `Alt+Shift+S` lưu vào "Chưa phân loại" (đổi tại `chrome://extensions/shortcuts`).
+
+Sau khi sửa code extension: bấm ↻ trên thẻ extension trong `chrome://extensions`. Test: `cd extension && npm test`.
+
 ## Phát triển
 
 ```bash
