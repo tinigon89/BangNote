@@ -102,7 +102,6 @@ dotnet add src/BangNote.Widget.Core package System.Security.Cryptography.Protect
 
 Sửa `src/BangNote.Widget.Core/BangNote.Widget.Core.csproj` và `tests/BangNote.Widget.Core.Tests/BangNote.Widget.Core.Tests.csproj`: đổi `<TargetFramework>net8.0</TargetFramework>` thành `<TargetFramework>net8.0-windows</TargetFramework>` (giữ nguyên các dòng khác template sinh ra). Trong csproj Core thêm vào `PropertyGroup`:
 ```xml
-    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
 ```
 
 `widget/.gitignore`:
@@ -1135,7 +1134,6 @@ Ghi đè `src/BangNote.Widget/BangNote.Widget.csproj`:
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <UseWPF>true</UseWPF>
