@@ -39,11 +39,18 @@ public sealed class SaveService(OfflineQueue queue, Func<DateTimeOffset>? now = 
         {
             return Enqueue(content, "Sai API key — đã giữ lại, sẽ gửi khi sửa key");
         }
-        catch (ApiRejectedException ex)
+        catch (ApiRejectedException ex) when (IsContentRejection(ex))
         {
             return new SaveResult.Rejected(ex.Message);
         }
+        catch (ApiRejectedException ex)
+        {
+            return Enqueue(content, $"Server từ chối ({ex.StatusCode}) — đã giữ lại, kiểm tra URL server");
+        }
     }
+
+    /// <summary>Chỉ các mã này nghĩa là chính nội dung bị từ chối — gửi lại cũng vô ích. Mã 4xx khác (sai URL, bị chặn, rate limit) có thể tự hết.</summary>
+    private static bool IsContentRejection(ApiRejectedException ex) => ex.StatusCode is 400 or 413 or 422;
 
     private SaveResult.Queued Enqueue(string content, string? reason)
     {
@@ -51,7 +58,7 @@ public sealed class SaveService(OfflineQueue queue, Func<DateTimeOffset>? now = 
         return new SaveResult.Queued(queue.Count, reason);
     }
 
-    /// <summary>Gửi lại hàng đợi theo thứ tự. Dừng khi mất mạng hoặc sai key; bỏ item bị server từ chối vì lý do khác.</summary>
+    /// <summary>Gửi lại hàng đợi theo thứ tự. Bỏ item có nội dung bị từ chối (400/413/422); dừng và giữ nguyên hàng đợi với mọi lỗi khác.</summary>
     public async Task<FlushResult> FlushAsync(CancellationToken ct = default)
     {
         var api = Api;
@@ -73,14 +80,14 @@ public sealed class SaveService(OfflineQueue queue, Func<DateTimeOffset>? now = 
                 {
                     return new FlushResult(sent, dropped, true);
                 }
-                catch (ApiRejectedException ex) when (ex.StatusCode == 401)
-                {
-                    return new FlushResult(sent, dropped, true);
-                }
-                catch (ApiRejectedException)
+                catch (ApiRejectedException ex) when (IsContentRejection(ex))
                 {
                     queue.RemoveFirst();
                     dropped++;
+                }
+                catch (ApiRejectedException)
+                {
+                    return new FlushResult(sent, dropped, true);
                 }
             }
             return new FlushResult(sent, dropped, false);

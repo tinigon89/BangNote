@@ -133,6 +133,34 @@ public sealed class SaveServiceTests : IDisposable
         Assert.Equal(1, _queue.Count);
     }
 
+    [Theory]
+    [InlineData(403)]
+    [InlineData(404)]
+    [InlineData(405)]
+    [InlineData(429)]
+    public async Task Flush_StopsOnNonContentRejection_KeepingQueue(int status)
+    {
+        _queue.Enqueue(new QueuedNote("x", DateTimeOffset.UnixEpoch));
+        _api.Behaviors.Enqueue(Status(status));
+
+        var result = await _service.FlushAsync();
+
+        Assert.True(result.Blocked);
+        Assert.Equal(0, result.Dropped);
+        Assert.Equal(1, _queue.Count);
+    }
+
+    [Theory]
+    [InlineData(404)]
+    [InlineData(429)]
+    public async Task Save_NonContentRejection_IsQueued_WithReason(int status)
+    {
+        _api.Behaviors.Enqueue(Status(status));
+        var queued = Assert.IsType<SaveResult.Queued>(await _service.SaveAsync("x"));
+        Assert.Contains($"{status}", queued.Reason);
+        Assert.Equal(1, _queue.Count);
+    }
+
     [Fact]
     public async Task Flush_WithoutApi_DoesNothing()
     {

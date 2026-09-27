@@ -188,8 +188,10 @@ public partial class MainWindow : Window
     private async Task FlushAsync()
     {
         if (_app.SaveService.Pending == 0) return;
-        await _app.SaveService.FlushAsync();
-        if (!_revertTimer.IsEnabled) ShowIdle();
+        var result = await _app.SaveService.FlushAsync();
+        if (result.Dropped > 0)
+            ShowMessage($"Đã bỏ {result.Dropped} ghi chú bị server từ chối (nội dung không hợp lệ)", ErrorBrush, TimeSpan.FromSeconds(8));
+        else if (!_revertTimer.IsEnabled) ShowIdle();
     }
 
     // ---------- sự kiện ----------
