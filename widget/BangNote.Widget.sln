@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{1593C2EB
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BangNote.Widget.Core.Tests", "tests\BangNote.Widget.Core.Tests\BangNote.Widget.Core.Tests.csproj", "{23AFB7B1-8EE6-4E8D-B40D-115F2E9E396C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BangNote.Widget", "src\BangNote.Widget\BangNote.Widget.csproj", "{B02DA746-E6BB-4BC5-B2F1-37D9CC45FA68}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,9 +30,14 @@ Global
 		{23AFB7B1-8EE6-4E8D-B40D-115F2E9E396C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{23AFB7B1-8EE6-4E8D-B40D-115F2E9E396C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{23AFB7B1-8EE6-4E8D-B40D-115F2E9E396C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B02DA746-E6BB-4BC5-B2F1-37D9CC45FA68}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B02DA746-E6BB-4BC5-B2F1-37D9CC45FA68}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B02DA746-E6BB-4BC5-B2F1-37D9CC45FA68}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B02DA746-E6BB-4BC5-B2F1-37D9CC45FA68}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{F33D45FC-039D-4C61-86A8-1CB5E1C0981C} = {9D304150-A6B4-4D77-B14E-EB119C4DC2FC}
 		{23AFB7B1-8EE6-4E8D-B40D-115F2E9E396C} = {1593C2EB-3A1B-4846-935D-432CC02049F2}
+		{B02DA746-E6BB-4BC5-B2F1-37D9CC45FA68} = {9D304150-A6B4-4D77-B14E-EB119C4DC2FC}
 	EndGlobalSection
 EndGlobal
