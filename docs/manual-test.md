@@ -35,3 +35,15 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 - [ ] "↻ Làm mới danh sách tag" cập nhật tag mới tạo.
 - [ ] Trang PDF: vẫn lưu được.
 - [ ] Server tắt → badge đỏ + "Không kết nối được server"; key sai → "API key không hợp lệ".
+
+## Widget Windows
+- [ ] Lần đầu chạy tự mở Cài đặt; URL sai báo lỗi; "Kiểm tra" báo số tag.
+- [ ] Kéo thả từ Chrome, Word, Notepad → "Đã lưu #n"; ghi chú nguồn Widget trên web.
+- [ ] Bấm tag trong 5 giây → tag đổi trên web; bấm "Chưa phân loại" → bỏ hết tag thật.
+- [ ] `Ctrl+V` khi widget đang được chọn → lưu clipboard.
+- [ ] Kéo file (không phải text) → không nhận.
+- [ ] Mất mạng → cam "đang chờ gửi"; có mạng lại → tự gửi trong ≤ 60 giây.
+- [ ] Sai API key → đỏ, ghi chú vẫn được giữ; sửa key → được gửi.
+- [ ] Vị trí widget được nhớ sau khi mở lại; chạy lần hai không mở thêm cửa sổ.
+- [ ] Khởi động cùng Windows bật/tắt được; Thoát xoá icon khay.
+- [ ] `queue.json` hỏng → app vẫn chạy, có `queue.json.bad`.

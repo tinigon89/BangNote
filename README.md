@@ -35,6 +35,24 @@ Khi thêm migration mới sau này: tạo `web/db/migrations/000N_ten.sql` rồi
 
 Sau khi sửa code extension: bấm ↻ trên thẻ extension trong `chrome://extensions`. Test: `cd extension && npm test`.
 
+## Cài widget Windows
+
+Cần [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) (x64).
+
+```bash
+cd widget
+dotnet publish src/BangNote.Widget -c Release -r win-x64 -p:PublishSingleFile=true --self-contained false -o publish
+```
+
+Chép `publish/BangNote.Widget.exe` vào nơi cố định (vd: `C:\Tools\BangNote\`) rồi chạy. Lần đầu nhập **URL server** và **API key** → *Kiểm tra* → *Lưu*. Bật "Khởi động cùng Windows" trong Cài đặt hoặc menu khay.
+
+- Kéo thả chữ đã chọn vào ô nổi, hoặc bấm vào ô rồi `Ctrl+V`.
+- Sau khi lưu, bấm nút tag trong 5 giây để chuyển tag.
+- Mất mạng / sai key: ghi chú được giữ ở `%AppData%\BangNote\queue.json` và tự gửi lại mỗi phút.
+- Không kéo được từ app chạy bằng quyền Administrator (Windows chặn).
+
+Không muốn cài runtime: thay `--self-contained false` bằng `--self-contained true` (file ~70MB). Test: `cd widget && dotnet test`.
+
 ## Phát triển
 
 ```bash
