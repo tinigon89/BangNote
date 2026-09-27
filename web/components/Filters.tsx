@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { SOURCES } from '@/lib/db/schema';
 import { SOURCE_LABELS, type NoteFilters } from '@/lib/notes/filters';
 import type { Tag } from '@/lib/notes/types';
+import { DateFilter, SortSelect } from './FilterControls';
 
 /** Form GET thuần — bộ lọc nằm trên URL nên bookmark được. */
 export function Filters({ tags, filters }: { tags: Tag[]; filters: NoteFilters }) {
@@ -18,6 +19,10 @@ export function Filters({ tags, filters }: { tags: Tag[]; filters: NoteFilters }
         <Link href="/" className="rounded-lg border px-3 py-1.5 text-sm">
           Xoá lọc
         </Link>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <SortSelect value={filters.sort} />
+        <DateFilter filters={filters} />
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
         {tags.map((tag) => (

@@ -1,25 +1,72 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { bulkSetTagsAction, deleteNotesAction } from '@/app/(admin)/actions';
+import { joinForCopy } from '@/lib/export/text';
 import type { Note, Tag } from '@/lib/notes/types';
+import { applyRange } from '@/lib/selection';
 import { NoteCard } from './NoteCard';
 import { TagPicker } from './TagPicker';
 
-export function NoteList({ notes, tags }: { notes: Note[]; tags: Tag[] }) {
+type Drag = { anchorId: number; base: Set<number>; select: boolean };
+
+const EDGE = 48; // px gần mép màn hình thì tự cuộn khi đang kéo chọn
+
+export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Tag[]; exportQuery: string }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string>();
+  const [copied, setCopied] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const visibleIds = notes.map((n) => n.id);
+  const idsRef = useRef(visibleIds);
+  idsRef.current = visibleIds;
+  const dragRef = useRef<Drag | null>(null);
+  const anchorRef = useRef<number | null>(null);
+
   const chosen = visibleIds.filter((id) => selected.has(id));
 
-  const select = (id: number, checked: boolean) =>
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      if (e.clientY < EDGE) window.scrollBy(0, -16);
+      else if (e.clientY > window.innerHeight - EDGE) window.scrollBy(0, 16);
+      const card = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-note-id]');
+      if (card) setSelected(applyRange(idsRef.current, drag.base, drag.anchorId, Number(card.dataset.noteId), drag.select));
+    };
+    const onUp = () => {
+      dragRef.current = null;
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, []);
+
+  const startGutter = (id: number, e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    if (e.shiftKey && anchorRef.current !== null) {
+      setSelected(applyRange(visibleIds, selected, anchorRef.current, id, true));
+      return;
+    }
+    const select = !selected.has(id);
+    dragRef.current = { anchorId: id, base: selected, select };
+    anchorRef.current = id;
+    setSelected(applyRange(visibleIds, selected, id, id, select));
+  };
+
+  const toggle = (id: number) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      if (checked) next.add(id);
-      else next.delete(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
 
@@ -32,6 +79,18 @@ export function NoteList({ notes, tags }: { notes: Note[]; tags: Tag[] }) {
         setPicking(false);
       }
     });
+
+  const copyChosen = async () => {
+    await navigator.clipboard.writeText(joinForCopy(notes.filter((n) => selected.has(n.id))));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const exportHref = (format: 'txt' | 'docx') => {
+    const params = [`format=${format}`, exportQuery, ...chosen.map((id) => `id=${id}`)].filter(Boolean);
+    return `/api/export?${params.join('&')}`;
+  };
+  const exportScope = chosen.length ? `${chosen.length} đã chọn` : 'tất cả kết quả';
 
   if (!notes.length) return <p className="py-10 text-center text-slate-500">Không có ghi chú nào.</p>;
 
@@ -46,21 +105,34 @@ export function NoteList({ notes, tags }: { notes: Note[]; tags: Tag[] }) {
           />
           Chọn tất cả
         </label>
-        {chosen.length > 0 && (
-          <>
-            <span className="text-slate-600">Đã chọn {chosen.length}</span>
-            <button onClick={() => setPicking(!picking)} className="rounded-lg border bg-white px-3 py-1" disabled={pending}>
-              Chuyển tag
-            </button>
-            <button
-              onClick={() => confirm(`Xoá ${chosen.length} ghi chú?`) && run(() => deleteNotesAction(chosen))}
-              className="rounded-lg border border-red-300 bg-white px-3 py-1 text-red-600"
-              disabled={pending}
-            >
-              Xoá
-            </button>
-          </>
-        )}
+        {/* Luôn giữ chỗ cho nhóm nút (chỉ ẩn đi) để thanh không đổi chiều cao — nếu không, danh sách nhảy xuống dưới con trỏ khi bắt đầu kéo chọn. */}
+        <span className={`flex flex-wrap items-center gap-3 ${chosen.length ? '' : 'invisible'}`} aria-hidden={!chosen.length}>
+          <span className="text-slate-600">Đã chọn {chosen.length}</span>
+          <button onClick={copyChosen} className="rounded-lg border bg-white px-3 py-1" disabled={!chosen.length}>
+            {copied ? 'Đã copy' : `Copy (${chosen.length})`}
+          </button>
+          <button onClick={() => setPicking(!picking)} className="rounded-lg border bg-white px-3 py-1" disabled={pending || !chosen.length}>
+            Chuyển tag
+          </button>
+          <button
+            onClick={() => confirm(`Xoá ${chosen.length} ghi chú?`) && run(() => deleteNotesAction(chosen))}
+            className="rounded-lg border border-red-300 bg-white px-3 py-1 text-red-600"
+            disabled={pending || !chosen.length}
+          >
+            Xoá
+          </button>
+        </span>
+        <span className="ml-auto flex gap-2" title={`Xuất ${exportScope}`}>
+          <a href={exportHref('txt')} download className="rounded-lg border bg-white px-3 py-1">
+            Xuất TXT
+          </a>
+          <a href={exportHref('docx')} download className="rounded-lg border bg-white px-3 py-1">
+            Xuất Word
+          </a>
+        </span>
+        <span className="w-full text-xs text-slate-500 sm:w-auto">
+          Xuất: {exportScope} · Kéo cột ô chọn để chọn nhanh
+        </span>
         {error && <span className="text-red-600">{error}</span>}
       </div>
       {picking && chosen.length > 0 && (
@@ -78,7 +150,8 @@ export function NoteList({ notes, tags }: { notes: Note[]; tags: Tag[] }) {
           note={note}
           tags={tags}
           selected={selected.has(note.id)}
-          onSelect={(checked) => select(note.id, checked)}
+          onToggle={() => toggle(note.id)}
+          onGutterPointerDown={(e) => startGutter(note.id, e)}
         />
       ))}
     </div>

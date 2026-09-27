@@ -10,6 +10,11 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 - [ ] Sửa nội dung, Copy, Xoá một ghi chú.
 - [ ] Chọn nhiều → Chuyển tag; chọn nhiều → Xoá.
 - [ ] "Tải thêm" xuất hiện khi > 50 ghi chú và tải thêm được.
+- [ ] Sắp xếp Mới nhất / Cũ nhất / Mới sửa gần đây đổi thứ tự ngay khi chọn.
+- [ ] Lọc thời gian: Hôm nay, Hôm qua, 7/30 ngày, Tháng này/trước, Chọn ngày, Chọn tháng, Tuỳ chọn (Từ–Đến); ghi chú lúc 23h thuộc đúng ngày theo giờ VN.
+- [ ] Kéo chuột dọc cột ô chọn bên trái → chọn nhiều thẻ; kéo từ thẻ đang chọn → bỏ chọn; Shift+click chọn cả đoạn; kéo trên chữ vẫn bôi đen bình thường.
+- [ ] Copy (n) chép nội dung các thẻ đã chọn, cách nhau một dòng trống.
+- [ ] Xuất TXT / Xuất Word: không chọn gì → toàn bộ kết quả lọc; có chọn → chỉ các thẻ đã chọn; file Word mở được trong Word.
 - [ ] Trang Tag: tạo, đổi tên, đổi màu, xoá; tạo trùng khác dấu bị chặn; tag mặc định không xoá được.
 - [ ] Trang Cài đặt: đủ ✅ biến môi trường; webhook ✓ đúng.
 - [ ] Mở trên điện thoại: bố cục không vỡ, không cuộn ngang.

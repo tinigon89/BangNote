@@ -1,11 +1,17 @@
-import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
 import { noteTags, notes, type Source } from '@/lib/db/schema';
 import type { DB } from '@/lib/db/types';
+import type { DateRange } from './dates';
 import { DomainError } from './errors';
 import { getTagsForNotes, setNoteTags } from './tags';
 import type { Note } from './types';
 
 export const MAX_CONTENT = 20000;
+/** Trang web chỉ xin tối đa 500; xuất file xin tới mức này. */
+export const MAX_LIST_LIMIT = 5000;
+
+export const SORTS = ['newest', 'oldest', 'updated'] as const;
+export type Sort = (typeof SORTS)[number];
 
 export interface CreateNoteInput {
   content: string;
@@ -19,6 +25,9 @@ export interface ListNotesFilter {
   q?: string;
   tagIds?: number[];
   sources?: Source[];
+  ids?: number[];
+  createdRange?: DateRange | null;
+  sort?: Sort;
   limit?: number;
 }
 
@@ -72,7 +81,7 @@ export async function getNote(db: DB, id: number): Promise<Note | null> {
 }
 
 export async function listNotes(db: DB, filter: ListNotesFilter = {}): Promise<{ notes: Note[]; hasMore: boolean }> {
-  const limit = Math.min(Math.max(filter.limit ?? 50, 1), 500);
+  const limit = Math.min(Math.max(filter.limit ?? 50, 1), MAX_LIST_LIMIT);
   const conditions: SQL[] = [];
 
   const q = filter.q?.trim();
@@ -86,12 +95,22 @@ export async function listNotes(db: DB, filter: ListNotesFilter = {}): Promise<{
     );
   }
   if (filter.sources?.length) conditions.push(inArray(notes.source, filter.sources));
+  if (filter.ids) conditions.push(filter.ids.length ? inArray(notes.id, filter.ids) : sql`false`);
+  if (filter.createdRange?.start) conditions.push(gte(notes.createdAt, filter.createdRange.start));
+  if (filter.createdRange?.end) conditions.push(lt(notes.createdAt, filter.createdRange.end));
+
+  const order =
+    filter.sort === 'oldest'
+      ? [asc(notes.id)]
+      : filter.sort === 'updated'
+        ? [desc(notes.updatedAt), desc(notes.id)]
+        : [desc(notes.id)];
 
   const rows = await db
     .select(noteColumns)
     .from(notes)
     .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(notes.id))
+    .orderBy(...order)
     .limit(limit + 1);
 
   return { notes: await withTags(db, rows.slice(0, limit)), hasMore: rows.length > limit };

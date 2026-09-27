@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { filtersToQuery, parseNoteFilters } from '@/lib/notes/filters';
+import { EMPTY_FILTERS, filtersToQuery, parseNoteFilters, toListFilter } from '@/lib/notes/filters';
 
 describe('parseNoteFilters', () => {
   it('mặc định', () => {
-    expect(parseNoteFilters({})).toEqual({ q: '', tagIds: [], sources: [], limit: 50 });
+    expect(parseNoteFilters({})).toEqual(EMPTY_FILTERS);
+    expect(EMPTY_FILTERS).toEqual({
+      q: '', tagIds: [], sources: [], sort: 'newest', date: '', day: '', month: '', from: '', to: '', limit: 50,
+    });
   });
 
   it('đọc tham số đơn và lặp lại, bỏ giá trị lạ', () => {
     expect(
       parseNoteFilters({ q: ' lich su ', tag: ['2', '3', 'abc', '2'], source: ['web', 'email'], limit: '100' }),
-    ).toEqual({ q: 'lich su', tagIds: [2, 3], sources: ['web'], limit: 100 });
+    ).toMatchObject({ q: 'lich su', tagIds: [2, 3], sources: ['web'], limit: 100 });
     expect(parseNoteFilters({ tag: '5', source: 'telegram' })).toMatchObject({ tagIds: [5], sources: ['telegram'] });
   });
 
@@ -18,17 +21,51 @@ describe('parseNoteFilters', () => {
     expect(parseNoteFilters({ limit: '-3' }).limit).toBe(50);
     expect(parseNoteFilters({ limit: 'x' }).limit).toBe(50);
   });
+
+  it('sort và thời gian: nhận giá trị hợp lệ, bỏ giá trị lạ', () => {
+    expect(parseNoteFilters({ sort: 'oldest', date: 'thismonth' })).toMatchObject({ sort: 'oldest', date: 'thismonth' });
+    expect(parseNoteFilters({ sort: 'zzz', date: 'forever' })).toMatchObject({ sort: 'newest', date: '' });
+    expect(parseNoteFilters({ date: 'custom', from: '2026-09-01', to: '2026-09-15' })).toMatchObject({
+      date: 'custom', from: '2026-09-01', to: '2026-09-15',
+    });
+    expect(parseNoteFilters({ date: 'day', day: '2026-09-27' }).day).toBe('2026-09-27');
+    expect(parseNoteFilters({ date: 'month', month: '2026-09' }).month).toBe('2026-09');
+  });
+
+  it('giá trị ngày của chế độ khác bị bỏ (không lọt vào URL)', () => {
+    expect(parseNoteFilters({ date: 'today', from: '2026-09-01', day: '2026-09-02' })).toMatchObject({ from: '', day: '' });
+  });
 });
 
 describe('filtersToQuery', () => {
-  it('round-trip và bỏ tham số rỗng', () => {
-    const f = { q: 'y học', tagIds: [2, 3], sources: ['web' as const], limit: 100 };
+  it('round-trip và bỏ tham số rỗng/mặc định', () => {
+    const f = { ...EMPTY_FILTERS, q: 'y học', tagIds: [2, 3], sources: ['web' as const], limit: 100 };
     const qs = filtersToQuery(f);
     expect(qs).toBe('q=y+h%E1%BB%8Dc&tag=2&tag=3&source=web&limit=100');
-    const sp = Object.fromEntries(
-      [...new URLSearchParams(qs).keys()].map((k) => [k, new URLSearchParams(qs).getAll(k)]),
-    );
+    const sp = Object.fromEntries([...new URLSearchParams(qs).keys()].map((k) => [k, new URLSearchParams(qs).getAll(k)]));
     expect(parseNoteFilters(sp)).toEqual(f);
-    expect(filtersToQuery({ q: '', tagIds: [], sources: [], limit: 50 })).toBe('');
+    expect(filtersToQuery(EMPTY_FILTERS)).toBe('');
+  });
+
+  it('ghi sort và thời gian', () => {
+    const f = { ...EMPTY_FILTERS, sort: 'updated' as const, date: 'custom' as const, from: '2026-09-01', to: '' };
+    expect(filtersToQuery(f)).toBe('sort=updated&date=custom&from=2026-09-01');
+    expect(parseNoteFilters(Object.fromEntries(new URLSearchParams(filtersToQuery(f))))).toEqual(f);
+  });
+});
+
+describe('toListFilter', () => {
+  it('chuyển sang bộ lọc của listNotes, tính khoảng thời gian theo giờ VN', () => {
+    const now = new Date('2026-09-27T03:00:00Z');
+    const f = { ...EMPTY_FILTERS, q: 'x', tagIds: [2], sort: 'oldest' as const, date: 'today' as const };
+    expect(toListFilter(f, now)).toEqual({
+      q: 'x',
+      tagIds: [2],
+      sources: [],
+      sort: 'oldest',
+      limit: 50,
+      createdRange: { start: new Date('2026-09-27T00:00:00+07:00'), end: new Date('2026-09-28T00:00:00+07:00') },
+    });
+    expect(toListFilter(EMPTY_FILTERS, now).createdRange).toBeNull();
   });
 });

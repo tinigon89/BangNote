@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  MAX_LIST_LIMIT,
   createNote,
   deleteNotes,
   getNote,
@@ -136,5 +137,47 @@ describe('getNote / updateNoteContent / deleteNotes / setTagsForNotes', () => {
     await setTagsForNotes(t.db, [a.id, b.id], [ls.id]);
     expect(names((await getNote(t.db, a.id))!)).toEqual(['Lịch sử']);
     expect(names((await getNote(t.db, b.id))!)).toEqual(['Lịch sử']);
+  });
+});
+
+describe('listNotes: sắp xếp, lọc id, lọc thời gian', () => {
+  async function seed() {
+    const a = await createNote(t.db, { content: 'A', source: 'web' });
+    const b = await createNote(t.db, { content: 'B', source: 'web' });
+    const c = await createNote(t.db, { content: 'C', source: 'web' });
+    return { a, b, c };
+  }
+  const contents = (r: { notes: { content: string }[] }) => r.notes.map((n) => n.content);
+
+  it('newest (mặc định) / oldest / updated', async () => {
+    const { a } = await seed();
+    await t.pg.query("UPDATE notes SET updated_at = now() + interval '1 hour' WHERE id = $1", [a.id]);
+    expect(contents(await listNotes(t.db))).toEqual(['C', 'B', 'A']);
+    expect(contents(await listNotes(t.db, { sort: 'oldest' }))).toEqual(['A', 'B', 'C']);
+    expect(contents(await listNotes(t.db, { sort: 'updated' }))).toEqual(['A', 'C', 'B']);
+  });
+
+  it('lọc theo danh sách id', async () => {
+    const { a, c } = await seed();
+    expect(contents(await listNotes(t.db, { ids: [a.id, c.id, 9999] }))).toEqual(['C', 'A']);
+  });
+
+  it('lọc created_at trong [start, end), mỗi đầu có thể mở', async () => {
+    const { a, b, c } = await seed();
+    const set = (id: number, iso: string) => t.pg.query('UPDATE notes SET created_at = $1 WHERE id = $2', [iso, id]);
+    await set(a.id, '2026-09-01T00:00:00+07:00');
+    await set(b.id, '2026-09-15T23:59:00+07:00');
+    await set(c.id, '2026-09-16T00:00:00+07:00');
+    const start = new Date('2026-09-01T00:00:00+07:00');
+    const end = new Date('2026-09-16T00:00:00+07:00');
+    expect(contents(await listNotes(t.db, { createdRange: { start, end } }))).toEqual(['B', 'A']);
+    expect(contents(await listNotes(t.db, { createdRange: { start: end, end: null } }))).toEqual(['C']);
+    expect(contents(await listNotes(t.db, { createdRange: { start: null, end: start } }))).toEqual([]);
+  });
+
+  it('limit cho phép tới 5000 (dùng khi xuất file)', async () => {
+    for (let i = 0; i < 3; i++) await createNote(t.db, { content: `n${i}`, source: 'web' });
+    expect((await listNotes(t.db, { limit: 99999 })).notes).toHaveLength(3);
+    expect(MAX_LIST_LIMIT).toBe(5000);
   });
 });

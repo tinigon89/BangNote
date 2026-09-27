@@ -12,12 +12,16 @@ export function NoteCard({
   note,
   tags,
   selected,
-  onSelect,
+  onToggle,
+  onGutterPointerDown,
 }: {
   note: Note;
   tags: Tag[];
   selected: boolean;
-  onSelect: (checked: boolean) => void;
+  /** Bật/tắt bằng bàn phím (Space trên ô chọn). */
+  onToggle: () => void;
+  /** Nhấn vào cột chọn bên trái: click, Shift+click hoặc bắt đầu kéo chọn. */
+  onGutterPointerDown: (e: React.PointerEvent) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -43,15 +47,25 @@ export function NoteCard({
   };
 
   return (
-    <article className={`space-y-2 rounded-xl bg-white p-4 shadow-sm ${pending ? 'opacity-60' : ''}`}>
-      <div className="flex items-start gap-3">
+    <article
+      data-note-id={note.id}
+      className={`relative space-y-2 rounded-xl bg-white p-4 pl-12 shadow-sm ${selected ? 'ring-2 ring-blue-400' : ''} ${pending ? 'opacity-60' : ''}`}
+    >
+      <div
+        onPointerDown={onGutterPointerDown}
+        className="absolute inset-y-0 left-0 flex w-10 items-start cursor-pointer touch-none select-none justify-center rounded-l-xl pt-5 hover:bg-slate-100"
+        title="Kéo lên/xuống để chọn nhiều · Shift+click để chọn cả đoạn"
+      >
+        {/* pointer-events-none: chuột đi qua cột chọn; ô vẫn nhận Space từ bàn phím */}
         <input
           type="checkbox"
           checked={selected}
-          onChange={(e) => onSelect(e.target.checked)}
-          className="mt-1"
+          onChange={onToggle}
+          className="pointer-events-none"
           aria-label={`Chọn ghi chú #${note.id}`}
         />
+      </div>
+      <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           {editing ? (
             <div className="space-y-2">
@@ -90,7 +104,7 @@ export function NoteCard({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 pl-7 text-sm text-slate-500">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
         <button onClick={() => setPicking(!picking)} className="flex flex-wrap gap-1" title="Đổi tag">
           {note.tags.map((tag) => (
             <TagChip key={tag.id} tag={tag} />
@@ -124,7 +138,7 @@ export function NoteCard({
       </div>
 
       {picking && (
-        <div className="pl-7">
+        <div>
           <TagPicker
             tags={tags}
             initial={note.tags.filter((t) => !t.isDefault).map((t) => t.id)}
@@ -133,7 +147,7 @@ export function NoteCard({
           />
         </div>
       )}
-      {error && <p className="pl-7 text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </article>
   );
 }
