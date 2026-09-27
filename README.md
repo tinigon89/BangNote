@@ -19,7 +19,7 @@ Gom nhanh các đoạn text từ điện thoại (bot Telegram), trình duyệt 
    npm run db:migrate           # → Đã chạy: 0001_init.sql
    ```
 3. **Bot**: chat với @BotFather → `/newbot` → lấy token làm `TELEGRAM_BOT_TOKEN`.
-4. **Vercel**: *Add New Project* → import repo → **Root Directory = `web`** → thêm đủ biến trong `web/.env.example` (tạm để `TELEGRAM_OWNER_ID` trống) → Deploy.
+4. **Vercel**: *Add New Project* → import repo → **Root Directory = `web`** (Node.js ≥ 22) → thêm đủ biến trong `web/.env.example` (tạm để `TELEGRAM_OWNER_ID` trống) → Deploy.
 5. Nhắn `/start` cho bot → bot trả user ID → đặt `TELEGRAM_OWNER_ID` trên Vercel → **Redeploy**.
 6. Mở domain production → đăng nhập → **Cài đặt** → *Đăng ký webhook* → dòng "Webhook hiện tại" hiện ✓ đúng.
 7. Gửi thử một tin nhắn cho bot → bot trả "✅ Đã lưu #1".
