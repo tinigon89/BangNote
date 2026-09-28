@@ -1,16 +1,16 @@
 import { and, asc, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
-import { noteTags, notes, type Source } from '@/lib/db/schema';
+import { notes, tags, type Source } from '@/lib/db/schema';
 import type { DB } from '@/lib/db/types';
 import type { DateRange } from './dates';
 import { DomainError } from './errors';
-import { getTagsForNotes, setNoteTags } from './tags';
+import { moveNote, nextPosition, pickTagId, resolveTag, tagColumns } from './tags';
 import type { Note } from './types';
 
 export const MAX_CONTENT = 20000;
 /** Trang web chỉ xin tối đa 500; xuất file xin tới mức này. */
 export const MAX_LIST_LIMIT = 5000;
 
-export const SORTS = ['newest', 'oldest', 'updated'] as const;
+export const SORTS = ['newest', 'oldest', 'updated', 'position'] as const;
 export type Sort = (typeof SORTS)[number];
 
 export interface CreateNoteInput {
@@ -37,9 +37,14 @@ const noteColumns = {
   source: notes.source,
   sourceUrl: notes.sourceUrl,
   sourceTitle: notes.sourceTitle,
+  position: notes.position,
   createdAt: notes.createdAt,
   updatedAt: notes.updatedAt,
 };
+const noteSelect = { ...noteColumns, tag: tagColumns };
+
+type NoteRow = Omit<Note, 'tags'> & { tag: Note['tags'][number] };
+const toNote = ({ tag, ...row }: NoteRow): Note => ({ ...row, tags: [tag] });
 
 function cleanContent(content: string): string {
   const trimmed = content.trim();
@@ -52,14 +57,11 @@ function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
-async function withTags(db: DB, rows: Omit<Note, 'tags'>[]): Promise<Note[]> {
-  const map = await getTagsForNotes(db, rows.map((r) => r.id));
-  return rows.map((r) => ({ ...r, tags: map.get(r.id) ?? [] }));
-}
-
 export async function createNote(db: DB, input: CreateNoteInput): Promise<Note> {
   const content = cleanContent(input.content);
   return db.transaction(async (tx) => {
+    const tag = await resolveTag(tx, await pickTagId(tx, input.tagIds ?? []));
+    const position = await nextPosition(tx, tag.id);
     const [row] = await tx
       .insert(notes)
       .values({
@@ -67,17 +69,17 @@ export async function createNote(db: DB, input: CreateNoteInput): Promise<Note> 
         source: input.source,
         sourceUrl: input.sourceUrl ?? null,
         sourceTitle: input.sourceTitle ?? null,
+        tagId: tag.id,
+        position,
       })
       .returning(noteColumns);
-    const tags = await setNoteTags(tx, row.id, input.tagIds ?? []);
-    return { ...row, tags };
+    return { ...row, tags: [tag] };
   });
 }
 
 export async function getNote(db: DB, id: number): Promise<Note | null> {
-  const rows = await db.select(noteColumns).from(notes).where(eq(notes.id, id));
-  if (!rows.length) return null;
-  return (await withTags(db, rows))[0];
+  const [row] = await db.select(noteSelect).from(notes).innerJoin(tags, eq(tags.id, notes.tagId)).where(eq(notes.id, id));
+  return row ? toNote(row) : null;
 }
 
 export async function listNotes(db: DB, filter: ListNotesFilter = {}): Promise<{ notes: Note[]; hasMore: boolean }> {
@@ -89,11 +91,7 @@ export async function listNotes(db: DB, filter: ListNotesFilter = {}): Promise<{
     const pattern = `%${escapeLike(q)}%`;
     conditions.push(sql`f_unaccent(lower(${notes.content})) LIKE f_unaccent(lower(${pattern}))`);
   }
-  if (filter.tagIds?.length) {
-    conditions.push(
-      inArray(notes.id, db.select({ id: noteTags.noteId }).from(noteTags).where(inArray(noteTags.tagId, filter.tagIds))),
-    );
-  }
+  if (filter.tagIds?.length) conditions.push(inArray(notes.tagId, filter.tagIds));
   if (filter.sources?.length) conditions.push(inArray(notes.source, filter.sources));
   if (filter.ids) conditions.push(filter.ids.length ? inArray(notes.id, filter.ids) : sql`false`);
   if (filter.createdRange?.start) conditions.push(gte(notes.createdAt, filter.createdRange.start));
@@ -104,27 +102,26 @@ export async function listNotes(db: DB, filter: ListNotesFilter = {}): Promise<{
       ? [asc(notes.id)]
       : filter.sort === 'updated'
         ? [desc(notes.updatedAt), desc(notes.id)]
-        : [desc(notes.id)];
+        : filter.sort === 'position'
+          ? [asc(notes.tagId), asc(notes.position), asc(notes.id)]
+          : [desc(notes.id)];
 
   const rows = await db
-    .select(noteColumns)
+    .select(noteSelect)
     .from(notes)
+    .innerJoin(tags, eq(tags.id, notes.tagId))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(...order)
     .limit(limit + 1);
 
-  return { notes: await withTags(db, rows.slice(0, limit)), hasMore: rows.length > limit };
+  return { notes: rows.slice(0, limit).map(toNote), hasMore: rows.length > limit };
 }
 
 export async function updateNoteContent(db: DB, id: number, content: string): Promise<Note> {
   const clean = cleanContent(content);
-  const rows = await db
-    .update(notes)
-    .set({ content: clean, updatedAt: new Date() })
-    .where(eq(notes.id, id))
-    .returning(noteColumns);
+  const rows = await db.update(notes).set({ content: clean, updatedAt: new Date() }).where(eq(notes.id, id)).returning({ id: notes.id });
   if (!rows.length) throw new DomainError('not_found', 'Không tìm thấy ghi chú');
-  return (await withTags(db, rows))[0];
+  return (await getNote(db, id))!;
 }
 
 export async function deleteNotes(db: DB, ids: number[]): Promise<number> {
@@ -133,8 +130,14 @@ export async function deleteNotes(db: DB, ids: number[]): Promise<number> {
   return rows.length;
 }
 
-export async function setTagsForNotes(db: DB, ids: number[], tagIds: number[]): Promise<void> {
+/** Chuyển nhiều ghi chú sang một tag theo đúng thứ tự `ids` (ghi chú đã ở tag đó giữ số). */
+export async function moveNotes(db: DB, ids: number[], tagId: number | null): Promise<void> {
   await db.transaction(async (tx) => {
-    for (const id of ids) await setNoteTags(tx, id, tagIds);
+    for (const id of ids) await moveNote(tx, id, tagId);
   });
+}
+
+/** Tương thích tạm (Task 3 xoá). */
+export async function setTagsForNotes(db: DB, ids: number[], tagIds: number[]): Promise<void> {
+  await moveNotes(db, ids, await pickTagId(db, tagIds));
 }

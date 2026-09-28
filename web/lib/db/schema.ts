@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, primaryKey, serial, text, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, integer, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core';
 
 export const SOURCES = ['telegram', 'extension', 'widget', 'web'] as const;
 export type Source = (typeof SOURCES)[number];
@@ -17,15 +17,9 @@ export const notes = pgTable('notes', {
   source: text('source', { enum: SOURCES }).notNull(),
   sourceUrl: text('source_url'),
   sourceTitle: text('source_title'),
+  tagId: integer('tag_id').notNull().references(() => tags.id),
+  /** Số thứ tự trong tag (hiển thị "Tag #position"). */
+  position: integer('position').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
-
-export const noteTags = pgTable(
-  'note_tags',
-  {
-    noteId: integer('note_id').notNull().references(() => notes.id, { onDelete: 'cascade' }),
-    tagId: integer('tag_id').notNull().references(() => tags.id, { onDelete: 'cascade' }),
-  },
-  (t) => [primaryKey({ columns: [t.noteId, t.tagId] })],
-);

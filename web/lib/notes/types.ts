@@ -15,7 +15,9 @@ export interface Note {
   sourceTitle: string | null;
   createdAt: Date;
   updatedAt: Date;
-  tags: Tag[];
+  tags: Tag[]; // luôn đúng 1 phần tử
+  /** Số thứ tự trong tag của ghi chú (tags[0]). */
+  position: number;
 }
 
 export function sortTags<T extends Tag>(list: T[]): T[] {

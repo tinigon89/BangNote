@@ -24,7 +24,7 @@ export async function createTestDb(): Promise<TestDb> {
     pg,
     async reset() {
       await pg.exec(
-        "TRUNCATE note_tags, notes RESTART IDENTITY CASCADE; DELETE FROM tags WHERE NOT is_default; UPDATE tags SET name = 'Chưa phân loại', color = '#94a3b8' WHERE is_default;",
+        "TRUNCATE notes RESTART IDENTITY CASCADE; DELETE FROM tags WHERE NOT is_default; UPDATE tags SET name = 'Chưa phân loại', color = '#94a3b8' WHERE is_default;",
       );
     },
     close: () => pg.close(),

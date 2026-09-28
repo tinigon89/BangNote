@@ -15,6 +15,7 @@ const n1: Note = {
   createdAt: new Date('2026-09-27T07:05:00Z'), // 14:05 giờ VN
   updatedAt: new Date('2026-09-27T07:05:00Z'),
   tags: [LS, YH],
+  position: 3,
 };
 const n2: Note = { ...n1, id: 13, content: 'Hải Thượng Lãn Ông', sourceUrl: null, sourceTitle: null, tags: [YH] };
 

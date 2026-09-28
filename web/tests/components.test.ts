@@ -21,6 +21,7 @@ const note: Note = {
   createdAt: new Date(Date.now() - 5 * 60_000),
   updatedAt: new Date(),
   tags: [LS],
+  position: 3,
 };
 
 describe('render phía server của trang ghi chú', () => {

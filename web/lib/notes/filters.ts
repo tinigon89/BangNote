@@ -44,6 +44,7 @@ export const SORT_LABELS: Record<Sort, string> = {
   newest: 'Mới nhất',
   oldest: 'Cũ nhất',
   updated: 'Mới sửa gần đây',
+  position: 'Theo số #',
 };
 
 type SearchParams = Record<string, string | string[] | undefined>;

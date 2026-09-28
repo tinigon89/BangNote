@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
-import { noteTags, notes, tags } from '@/lib/db/schema';
+import { notes, tags } from '@/lib/db/schema';
 import type { DB } from '@/lib/db/types';
 import { normalizeKey } from '@/lib/text/normalize';
 import { DomainError } from './errors';
@@ -12,15 +12,20 @@ export const TAG_COLORS = [
 
 export const tagColumns = { id: tags.id, name: tags.name, color: tags.color, isDefault: tags.isDefault };
 
+export interface Placement {
+  tag: Tag;
+  position: number;
+}
+
 export async function listTags(db: DB): Promise<Tag[]> {
   return sortTags(await db.select(tagColumns).from(tags).orderBy(desc(tags.isDefault), asc(tags.name)));
 }
 
 export async function listTagsWithCounts(db: DB): Promise<(Tag & { noteCount: number })[]> {
   const rows = await db
-    .select({ ...tagColumns, noteCount: sql<number>`count(${noteTags.noteId})::int` })
+    .select({ ...tagColumns, noteCount: sql<number>`count(${notes.id})::int` })
     .from(tags)
-    .leftJoin(noteTags, eq(noteTags.tagId, tags.id))
+    .leftJoin(notes, eq(notes.tagId, tags.id))
     .groupBy(tags.id);
   return sortTags(rows);
 }
@@ -29,6 +34,82 @@ export async function getDefaultTag(db: DB): Promise<Tag> {
   const [tag] = await db.select(tagColumns).from(tags).where(eq(tags.isDefault, true));
   if (!tag) throw new Error('Thiếu tag mặc định — hãy chạy migration');
   return tag;
+}
+
+/** Tag thật đầu tiên còn tồn tại theo thứ tự `tagIds`; không có → null (= tag mặc định). */
+export async function pickTagId(db: DB, tagIds: number[]): Promise<number | null> {
+  const unique = [...new Set(tagIds)];
+  if (!unique.length) return null;
+  const rows = await db
+    .select({ id: tags.id })
+    .from(tags)
+    .where(and(inArray(tags.id, unique), eq(tags.isDefault, false)));
+  const found = new Set(rows.map((r) => r.id));
+  return unique.find((id) => found.has(id)) ?? null;
+}
+
+/** null hoặc id không tồn tại → tag mặc định. */
+export async function resolveTag(db: DB, tagId: number | null): Promise<Tag> {
+  if (tagId !== null) {
+    const [tag] = await db.select(tagColumns).from(tags).where(eq(tags.id, tagId));
+    if (tag) return tag;
+  }
+  return getDefaultTag(db);
+}
+
+export async function nextPosition(db: DB, tagId: number): Promise<number> {
+  const [row] = await db
+    .select({ max: sql<number | null>`max(${notes.position})` })
+    .from(notes)
+    .where(eq(notes.tagId, tagId));
+  return (row?.max ?? 0) + 1;
+}
+
+/** Nơi DUY NHẤT đổi tag của ghi chú. Sang tag khác → nối cuối tag mới; cùng tag → giữ nguyên. */
+export async function moveNote(db: DB, noteId: number, tagId: number | null): Promise<Placement> {
+  return db.transaction(async (tx) => {
+    const [note] = await tx
+      .select({ tagId: notes.tagId, position: notes.position })
+      .from(notes)
+      .where(eq(notes.id, noteId));
+    if (!note) throw new DomainError('not_found', 'Không tìm thấy ghi chú');
+    const tag = await resolveTag(tx, tagId);
+    if (tag.id === note.tagId) return { tag, position: note.position };
+    const position = await nextPosition(tx, tag.id);
+    await tx.update(notes).set({ tagId: tag.id, position, updatedAt: new Date() }).where(eq(notes.id, noteId));
+    return { tag, position };
+  });
+}
+
+/** Tương thích tạm (Task 3 xoá): nhận danh sách tag kiểu cũ, lấy tag thật đầu tiên. */
+export async function setNoteTags(db: DB, noteId: number, tagIds: number[]): Promise<Tag[]> {
+  const { tag } = await moveNote(db, noteId, await pickTagId(db, tagIds));
+  return [tag];
+}
+
+/**
+ * Gán 1…k cho `orderedIds` (phải thuộc tag), ghi chú còn lại của tag đánh tiếp k+1… theo số cũ.
+ * Không đổi `updated_at` (đánh số không phải là sửa nội dung).
+ */
+export async function renumberTag(db: DB, tagId: number, orderedIds: number[]): Promise<void> {
+  await db.transaction(async (tx) => {
+    const rows = await tx
+      .select({ id: notes.id })
+      .from(notes)
+      .where(eq(notes.tagId, tagId))
+      .orderBy(asc(notes.position), asc(notes.id));
+    const inTag = new Set(rows.map((r) => r.id));
+    const chosen = [...new Set(orderedIds)];
+    if (chosen.some((id) => !inTag.has(id))) throw new DomainError('invalid', 'Có ghi chú không thuộc tag này');
+    const chosenSet = new Set(chosen);
+    const order = [...chosen, ...rows.map((r) => r.id).filter((id) => !chosenSet.has(id))];
+    if (!order.length) return;
+    const values = sql.join(
+      order.map((id, i) => sql`(${id}::int, ${i + 1}::int)`),
+      sql`, `,
+    );
+    await tx.execute(sql`UPDATE notes n SET position = v.pos FROM (VALUES ${values}) AS v(id, pos) WHERE n.id = v.id`);
+  });
 }
 
 function cleanName(name: string): string {
@@ -75,51 +156,18 @@ export async function updateTag(db: DB, id: number, input: { name?: string; colo
   return tag;
 }
 
+/** Ghi chú của tag bị xoá chuyển về tag mặc định, nối cuối theo số cũ. */
 export async function deleteTag(db: DB, id: number): Promise<void> {
   await db.transaction(async (tx) => {
     const [tag] = await tx.select(tagColumns).from(tags).where(eq(tags.id, id));
     if (!tag) throw new DomainError('not_found', 'Không tìm thấy tag');
     if (tag.isDefault) throw new DomainError('invalid', 'Không thể xoá tag mặc định');
-    await tx.delete(tags).where(eq(tags.id, id));
     const def = await getDefaultTag(tx);
+    const start = await nextPosition(tx, def.id);
     await tx.execute(sql`
-      INSERT INTO note_tags (note_id, tag_id)
-      SELECT n.id, ${def.id} FROM notes n
-      WHERE NOT EXISTS (SELECT 1 FROM note_tags nt WHERE nt.note_id = n.id)`);
+      UPDATE notes n SET tag_id = ${def.id}::int, position = ${start}::int - 1 + r.rn::int
+      FROM (SELECT id, row_number() OVER (ORDER BY position, id) AS rn FROM notes WHERE tag_id = ${id}::int) r
+      WHERE r.id = n.id`);
+    await tx.delete(tags).where(eq(tags.id, id));
   });
-}
-
-/**
- * Nơi DUY NHẤT gán tag cho note. Bỏ tag mặc định và id lạ khỏi `tagIds`;
- * còn tag thật → chỉ giữ chúng, rỗng → gắn tag mặc định.
- */
-export async function setNoteTags(db: DB, noteId: number, tagIds: number[]): Promise<Tag[]> {
-  return db.transaction(async (tx) => {
-    const [note] = await tx.select({ id: notes.id }).from(notes).where(eq(notes.id, noteId));
-    if (!note) throw new DomainError('not_found', 'Không tìm thấy ghi chú');
-
-    const unique = [...new Set(tagIds)];
-    const real = unique.length
-      ? await tx.select(tagColumns).from(tags).where(and(inArray(tags.id, unique), eq(tags.isDefault, false)))
-      : [];
-    const final = real.length ? real : [await getDefaultTag(tx)];
-
-    await tx.delete(noteTags).where(eq(noteTags.noteId, noteId));
-    await tx.insert(noteTags).values(final.map((tag) => ({ noteId, tagId: tag.id })));
-    await tx.update(notes).set({ updatedAt: new Date() }).where(eq(notes.id, noteId));
-    return sortTags(final);
-  });
-}
-
-export async function getTagsForNotes(db: DB, noteIds: number[]): Promise<Map<number, Tag[]>> {
-  const map = new Map<number, Tag[]>(noteIds.map((id) => [id, []]));
-  if (!noteIds.length) return map;
-  const rows = await db
-    .select({ noteId: noteTags.noteId, ...tagColumns })
-    .from(noteTags)
-    .innerJoin(tags, eq(tags.id, noteTags.tagId))
-    .where(inArray(noteTags.noteId, noteIds));
-  for (const { noteId, ...tag } of rows) map.get(noteId)?.push(tag);
-  for (const [id, list] of map) map.set(id, sortTags(list));
-  return map;
 }

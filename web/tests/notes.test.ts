@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   MAX_LIST_LIMIT,
   createNote,
+  moveNotes,
   deleteNotes,
   getNote,
   listNotes,
@@ -179,5 +180,43 @@ describe('listNotes: sắp xếp, lọc id, lọc thời gian', () => {
     for (let i = 0; i < 3; i++) await createNote(t.db, { content: `n${i}`, source: 'web' });
     expect((await listNotes(t.db, { limit: 99999 })).notes).toHaveLength(3);
     expect(MAX_LIST_LIMIT).toBe(5000);
+  });
+});
+
+describe('số thứ tự khi tạo / chuyển hàng loạt / sort theo số', () => {
+  it('createNote cấp max + 1 trong tag, tag rỗng → 1 (kể cả sau khi xoá hết)', async () => {
+    const ls = await createTag(t.db, { name: 'Lịch sử' });
+    expect((await createNote(t.db, { content: 'a', source: 'web', tagIds: [ls.id] })).position).toBe(1);
+    const b = await createNote(t.db, { content: 'b', source: 'web', tagIds: [ls.id] });
+    expect(b.position).toBe(2);
+    expect((await createNote(t.db, { content: 'c', source: 'web' })).position).toBe(1);
+    await deleteNotes(t.db, (await listNotes(t.db, { tagIds: [ls.id] })).notes.map((n) => n.id));
+    expect((await createNote(t.db, { content: 'd', source: 'web', tagIds: [ls.id] })).position).toBe(1);
+  });
+
+  it('nhiều tagIds → chỉ giữ tag thật đầu tiên', async () => {
+    const ls = await createTag(t.db, { name: 'Lịch sử' });
+    const yh = await createTag(t.db, { name: 'Y học' });
+    const note = await createNote(t.db, { content: 'x', source: 'web', tagIds: [yh.id, ls.id] });
+    expect(note.tags.map((x) => x.name)).toEqual(['Y học']);
+  });
+
+  it('moveNotes: nối theo thứ tự truyền vào; ghi chú đã ở tag đích giữ số', async () => {
+    const ls = await createTag(t.db, { name: 'Lịch sử' });
+    const inLs = await createNote(t.db, { content: 'ls', source: 'web', tagIds: [ls.id] }); // LS #1
+    const a = await createNote(t.db, { content: 'a', source: 'web' });
+    const b = await createNote(t.db, { content: 'b', source: 'web' });
+    await moveNotes(t.db, [b.id, inLs.id, a.id], ls.id);
+    expect((await getNote(t.db, b.id))!.position).toBe(2);
+    expect((await getNote(t.db, inLs.id))!.position).toBe(1);
+    expect((await getNote(t.db, a.id))!.position).toBe(3);
+  });
+
+  it("sort 'position' tăng dần theo số", async () => {
+    const ls = await createTag(t.db, { name: 'Lịch sử' });
+    const a = await createNote(t.db, { content: 'A', source: 'web', tagIds: [ls.id] });
+    await createNote(t.db, { content: 'B', source: 'web', tagIds: [ls.id] });
+    await t.pg.query('UPDATE notes SET position = 9 WHERE id = $1', [a.id]);
+    expect((await listNotes(t.db, { tagIds: [ls.id], sort: 'position' })).notes.map((n) => n.content)).toEqual(['B', 'A']);
   });
 });
