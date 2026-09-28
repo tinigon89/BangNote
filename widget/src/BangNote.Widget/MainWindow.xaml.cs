@@ -136,7 +136,7 @@ public partial class MainWindow : Window
     private async Task ShowSavedAsync(NoteDto note)
     {
         _lastNote = note;
-        SetStatus($"Đã lưu #{note.Id}", OkBrush);
+        SetStatus(NoteLabel.Saved(note), OkBrush);
         IReadOnlyList<TagDto> tags = _app.Tags is { } cache ? await cache.GetAsync() : [];
         RenderTags(note, tags);
         RestartRevert(TimeSpan.FromSeconds(5));
@@ -171,11 +171,12 @@ public partial class MainWindow : Window
     {
         if (_lastNote is not { } note || _app.SaveService.Api is not { } api || _app.Tags is not { } cache) return;
         RestartRevert(TimeSpan.FromSeconds(5));
-        var defaultId = cache.Current.FirstOrDefault(t => t.IsDefault)?.Id ?? -1;
+        if (NoteLabel.TagIdsForPick(note, tag.Id) is not { } tagIds) return;
         try
         {
-            var tags = await api.SetNoteTagsAsync(note.Id, TagToggle.Toggle(note.Tags, tag.Id, defaultId));
-            _lastNote = note with { Tags = tags };
+            var placement = await api.SetNoteTagsAsync(note.Id, tagIds);
+            _lastNote = note with { Tags = placement.Tags, Position = placement.Position };
+            StatusText.Text = NoteLabel.Saved(_lastNote);
             RenderTags(_lastNote, cache.Current);
             RestartRevert(TimeSpan.FromSeconds(5));
         }

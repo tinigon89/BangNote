@@ -2,7 +2,10 @@ namespace BangNote.Widget.Core;
 
 public sealed record TagDto(int Id, string Name, string Color, bool IsDefault);
 
-public sealed record NoteDto(int Id, string Content, IReadOnlyList<TagDto> Tags);
+/// <summary>Position = số thứ tự trong tag; 0 khi server cũ chưa trả trường này.</summary>
+public sealed record NoteDto(int Id, string Content, IReadOnlyList<TagDto> Tags, int Position = 0);
+
+public sealed record TagPlacement(IReadOnlyList<TagDto> Tags, int Position);
 
 public sealed record QueuedNote(string Content, DateTimeOffset QueuedAt);
 

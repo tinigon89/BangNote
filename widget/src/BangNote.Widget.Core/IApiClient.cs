@@ -4,5 +4,5 @@ public interface IApiClient
 {
     Task<IReadOnlyList<TagDto>> GetTagsAsync(CancellationToken ct = default);
     Task<NoteDto> CreateNoteAsync(string content, CancellationToken ct = default);
-    Task<IReadOnlyList<TagDto>> SetNoteTagsAsync(int noteId, IReadOnlyList<int> tagIds, CancellationToken ct = default);
+    Task<TagPlacement> SetNoteTagsAsync(int noteId, IReadOnlyList<int> tagIds, CancellationToken ct = default);
 }

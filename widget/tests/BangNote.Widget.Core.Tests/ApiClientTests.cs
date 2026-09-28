@@ -46,11 +46,12 @@ public class ApiClientTests
     public async Task CreateNote_PostsWidgetSource_AndParsesNote()
     {
         var (client, handler) = Create((_, _) => Task.FromResult(Json(HttpStatusCode.Created,
-            """{"id":7,"content":"hi","source":"widget","tags":[{"id":1,"name":"Chưa phân loại","color":"#94a3b8","isDefault":true}]}""")));
+            """{"id":7,"content":"hi","source":"widget","position":4,"tags":[{"id":1,"name":"Chưa phân loại","color":"#94a3b8","isDefault":true}]}""")));
 
         var note = await client.CreateNoteAsync("hi");
 
         Assert.Equal(7, note.Id);
+        Assert.Equal(4, note.Position);
         Assert.Equal("Chưa phân loại", note.Tags.Single().Name);
         var (request, body) = handler.Requests.Single();
         Assert.Equal(HttpMethod.Post, request.Method);
@@ -61,11 +62,12 @@ public class ApiClientTests
     public async Task SetNoteTags_PutsTagIds_AndReturnsTags()
     {
         var (client, handler) = Create((_, _) => Task.FromResult(Json(HttpStatusCode.OK,
-            """{"id":7,"tags":[{"id":2,"name":"Lịch sử","color":"#ef4444","isDefault":false}]}""")));
+            """{"id":7,"tags":[{"id":2,"name":"Lịch sử","color":"#ef4444","isDefault":false}],"position":5}""")));
 
-        var tags = await client.SetNoteTagsAsync(7, [2, 3]);
+        var placement = await client.SetNoteTagsAsync(7, [2, 3]);
 
-        Assert.Equal("Lịch sử", tags.Single().Name);
+        Assert.Equal("Lịch sử", placement.Tags.Single().Name);
+        Assert.Equal(5, placement.Position);
         var (request, body) = handler.Requests.Single();
         Assert.Equal(HttpMethod.Put, request.Method);
         Assert.Equal("https://x.test/api/notes/7/tags", request.RequestUri!.ToString());

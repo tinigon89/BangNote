@@ -16,7 +16,7 @@ public sealed class SaveServiceTests : IDisposable
 
         public Task<IReadOnlyList<TagDto>> GetTagsAsync(CancellationToken ct = default) => throw new NotSupportedException();
 
-        public Task<IReadOnlyList<TagDto>> SetNoteTagsAsync(int noteId, IReadOnlyList<int> tagIds, CancellationToken ct = default) =>
+        public Task<TagPlacement> SetNoteTagsAsync(int noteId, IReadOnlyList<int> tagIds, CancellationToken ct = default) =>
             throw new NotSupportedException();
     }
 
