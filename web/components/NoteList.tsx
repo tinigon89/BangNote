@@ -149,7 +149,7 @@ export function NoteList({
 
   const renumber = () => {
     if (!singleTag) return;
-    if (!confirm(renumberConfirmText(singleTag.name, visibleIds.length, singleTag.noteCount ?? visibleIds.length))) return;
+    if (!confirm(renumberConfirmText(singleTag.name, singleTag.noteCount ?? visibleIds.length, 'Theo số #'))) return;
     const tagId = singleTag.id;
     startTransition(async () => {
       const res = await renumberAction(tagId, 'position');

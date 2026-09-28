@@ -5,6 +5,7 @@
 export class ReorderSession {
   private order: number[];
   private readonly initial: number[];
+  private last: { id: number; after: boolean } | null = null;
 
   constructor(
     ids: number[],
@@ -24,8 +25,14 @@ export class ReorderSession {
     const index = without.indexOf(targetId);
     if (index < 0) return this.order;
     without.splice(after ? index + 1 : index, 0, this.movingId);
+    this.last = { id: targetId, after };
     this.order = without;
     return this.order;
+  }
+
+  /** Thẻ đích cuối cùng — server làm lại đúng phép thả bằng (movingId, target). */
+  get target(): { id: number; after: boolean } | null {
+    return this.last;
   }
 
   get current(): number[] {

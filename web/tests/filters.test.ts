@@ -1,25 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_FILTERS, canReorder, defaultSort, renumberConfirmText, filtersToQuery, parseNoteFilters, toListFilter } from '@/lib/notes/filters';
+import { EMPTY_FILTERS, canReorder, defaultSort, isGrouped, renumberConfirmText, filtersToQuery, parseNoteFilters, toListFilter } from '@/lib/notes/filters';
 
 describe('parseNoteFilters', () => {
   it('mặc định', () => {
     expect(parseNoteFilters({})).toEqual(EMPTY_FILTERS);
     expect(EMPTY_FILTERS).toEqual({
-      q: '', tagIds: [], sources: [], sort: 'newest', date: '', day: '', month: '', from: '', to: '', limit: 50,
+      q: '', tagIds: [], sources: [], sort: 'newest', date: '', day: '', month: '', from: '', to: '', page: 1, posts: false,
     });
   });
 
   it('đọc tham số đơn và lặp lại, bỏ giá trị lạ', () => {
     expect(
-      parseNoteFilters({ q: ' lich su ', tag: ['2', '3', 'abc', '2'], source: ['web', 'email'], limit: '100' }),
-    ).toMatchObject({ q: 'lich su', tagIds: [2, 3], sources: ['web'], limit: 100 });
+      parseNoteFilters({ q: ' lich su ', tag: ['2', '3', 'abc', '2'], source: ['web', 'email'], page: '3', posts: '1' }),
+    ).toMatchObject({ q: 'lich su', tagIds: [2, 3], sources: ['web'], page: 3, posts: true });
     expect(parseNoteFilters({ tag: '5', source: 'telegram' })).toMatchObject({ tagIds: [5], sources: ['telegram'] });
   });
 
-  it('kẹp limit', () => {
-    expect(parseNoteFilters({ limit: '9999' }).limit).toBe(500);
-    expect(parseNoteFilters({ limit: '-3' }).limit).toBe(50);
-    expect(parseNoteFilters({ limit: 'x' }).limit).toBe(50);
+  it('page: số nguyên ≥ 1, sai → 1', () => {
+    expect(parseNoteFilters({ page: '0' }).page).toBe(1);
+    expect(parseNoteFilters({ page: '-3' }).page).toBe(1);
+    expect(parseNoteFilters({ page: 'x' }).page).toBe(1);
+    expect(parseNoteFilters({ page: '7' }).page).toBe(7);
   });
 
   it('sort và thời gian: nhận giá trị hợp lệ, bỏ giá trị lạ', () => {
@@ -39,9 +40,9 @@ describe('parseNoteFilters', () => {
 
 describe('filtersToQuery', () => {
   it('round-trip và bỏ tham số rỗng/mặc định', () => {
-    const f = { ...EMPTY_FILTERS, q: 'y học', tagIds: [2, 3], sources: ['web' as const], limit: 100 };
+    const f = { ...EMPTY_FILTERS, q: 'y học', tagIds: [2, 3], sources: ['web' as const], page: 2, posts: true };
     const qs = filtersToQuery(f);
-    expect(qs).toBe('q=y+h%E1%BB%8Dc&tag=2&tag=3&source=web&limit=100');
+    expect(qs).toBe('q=y+h%E1%BB%8Dc&tag=2&tag=3&source=web&posts=1&page=2');
     const sp = Object.fromEntries([...new URLSearchParams(qs).keys()].map((k) => [k, new URLSearchParams(qs).getAll(k)]));
     expect(parseNoteFilters(sp)).toEqual(f);
     expect(filtersToQuery(EMPTY_FILTERS)).toBe('');
@@ -63,7 +64,6 @@ describe('toListFilter', () => {
       tagIds: [2],
       sources: [],
       sort: 'oldest',
-      limit: 50,
       createdRange: { start: new Date('2026-09-27T00:00:00+07:00'), end: new Date('2026-09-28T00:00:00+07:00') },
     });
     expect(toListFilter(EMPTY_FILTERS, now).createdRange).toBeNull();
@@ -99,12 +99,17 @@ describe('canReorder', () => {
 });
 
 describe('renumberConfirmText', () => {
-  it('đang hiện đủ cả tag', () => {
-    expect(renumberConfirmText('Temp', 5, 5)).toBe('Đánh số lại 5 ghi chú trong tag "Temp" theo thứ tự đang hiển thị?');
-  });
-  it('chỉ hiện một phần → nói rõ phần còn lại đánh tiếp', () => {
-    expect(renumberConfirmText('Temp', 3, 10)).toBe(
-      'Đánh số lại tag "Temp": 3 ghi chú đang hiện thành #1–#3 theo thứ tự này, 7 ghi chú còn lại đánh tiếp từ #4?',
+  it('nói rõ toàn tag, theo sort nào', () => {
+    expect(renumberConfirmText('Temp', 18, 'Cũ nhất')).toBe(
+      'Đánh số lại toàn bộ 18 ghi chú trong tag "Temp" theo "Cũ nhất"? Bài đánh #1…, comment trong mỗi bài .1, .2…',
     );
+  });
+});
+
+describe('isGrouped', () => {
+  it('đúng 1 tag + sort theo số', () => {
+    expect(isGrouped({ ...EMPTY_FILTERS, tagIds: [2], sort: 'position' })).toBe(true);
+    expect(isGrouped({ ...EMPTY_FILTERS, tagIds: [2], sort: 'newest' })).toBe(false);
+    expect(isGrouped({ ...EMPTY_FILTERS, tagIds: [2, 3], sort: 'position' })).toBe(false);
   });
 });

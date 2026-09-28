@@ -32,4 +32,13 @@ describe('ReorderSession (kéo sắp xếp)', () => {
     expect(s.over(2, true)).toEqual([1, 2, 3]);
     expect(s.over(99, true)).toEqual([1, 2, 3]);
   });
+  it('target: thẻ đích cuối cùng và nửa trên/dưới (để server làm lại đúng phép thả)', () => {
+    const s = new ReorderSession([1, 2, 3, 4], 1);
+    expect(s.target).toBeNull();
+    s.over(3, true);
+    s.over(2, false);
+    expect(s.target).toEqual({ id: 2, after: false });
+    s.over(1, true); // chính nó → không đổi target
+    expect(s.target).toEqual({ id: 2, after: false });
+  });
 });

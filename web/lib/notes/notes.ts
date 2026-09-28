@@ -88,10 +88,8 @@ export async function getNote(db: DB, id: number): Promise<Note | null> {
   return row ? toNote(row) : null;
 }
 
-export async function listNotes(db: DB, filter: ListNotesFilter = {}): Promise<{ notes: Note[]; hasMore: boolean }> {
-  const limit = Math.min(Math.max(filter.limit ?? 50, 1), MAX_LIST_LIMIT);
+function buildConditions(db: DB, filter: ListNotesFilter): SQL[] {
   const conditions: SQL[] = [];
-
   const q = filter.q?.trim();
   if (q) {
     const pattern = `%${escapeLike(q)}%`;
@@ -102,22 +100,29 @@ export async function listNotes(db: DB, filter: ListNotesFilter = {}): Promise<{
   if (filter.ids) conditions.push(filter.ids.length ? inArray(notes.id, filter.ids) : sql`false`);
   if (filter.createdRange?.start) conditions.push(gte(notes.createdAt, filter.createdRange.start));
   if (filter.createdRange?.end) conditions.push(lt(notes.createdAt, filter.createdRange.end));
+  return conditions;
+}
 
-  const order =
-    filter.sort === 'oldest'
-      ? [asc(notes.id)]
-      : filter.sort === 'updated'
-        ? [desc(notes.updatedAt), desc(notes.id)]
-        : filter.sort === 'position'
-          ? [asc(notes.tagId), asc(notes.position), asc(notes.sub), asc(notes.id)]
-          : [desc(notes.id)];
+function orderFor(sort: Sort | undefined) {
+  return sort === 'oldest'
+    ? [asc(notes.id)]
+    : sort === 'updated'
+      ? [desc(notes.updatedAt), desc(notes.id)]
+      : sort === 'position'
+        ? [asc(notes.tagId), asc(notes.position), asc(notes.sub), asc(notes.id)]
+        : [desc(notes.id)];
+}
+
+export async function listNotes(db: DB, filter: ListNotesFilter = {}): Promise<{ notes: Note[]; hasMore: boolean }> {
+  const limit = Math.min(Math.max(filter.limit ?? 50, 1), MAX_LIST_LIMIT);
+  const conditions = buildConditions(db, filter);
 
   const rows = await db
     .select(noteSelect)
     .from(notes)
     .innerJoin(tags, eq(tags.id, notes.tagId))
     .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(...order)
+    .orderBy(...orderFor(filter.sort))
     .limit(limit + 1);
 
   return { notes: rows.slice(0, limit).map(toNote), hasMore: rows.length > limit };
@@ -136,3 +141,54 @@ export async function deleteNotes(db: DB, ids: number[]): Promise<number> {
   return rows.length;
 }
 
+export interface NotePage {
+  notes: Note[];
+  page: number;
+  pageCount: number;
+  total: number;
+}
+
+const clampPage = (page: number, pageCount: number) => Math.min(Math.max(Math.trunc(page) || 1, 1), pageCount);
+
+/** Danh sách phẳng, phân trang theo ghi chú. */
+export async function listNotesPage(db: DB, filter: ListNotesFilter, page: number, perPage: number): Promise<NotePage> {
+  const conditions = buildConditions(db, filter);
+  const where = conditions.length ? and(...conditions) : undefined;
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(notes).where(where);
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
+  const current = clampPage(page, pageCount);
+  const rows = await db
+    .select(noteSelect)
+    .from(notes)
+    .innerJoin(tags, eq(tags.id, notes.tagId))
+    .where(where)
+    .orderBy(...orderFor(filter.sort))
+    .limit(perPage)
+    .offset((current - 1) * perPage);
+  return { notes: rows.map(toNote), page: current, pageCount, total };
+}
+
+/** Chế độ nhóm (một tag): phân trang theo bài; mỗi trang gồm mọi ghi chú khớp bộ lọc của các bài đó. */
+export async function listPostsPage(
+  db: DB,
+  filter: ListNotesFilter & { tagId: number },
+  page: number,
+  perPage: number,
+): Promise<NotePage> {
+  const where = and(...buildConditions(db, filter), eq(notes.tagId, filter.tagId));
+  const groups = (
+    await db.selectDistinct({ position: notes.position }).from(notes).where(where).orderBy(asc(notes.position))
+  ).map((r) => r.position);
+  const pageCount = Math.max(1, Math.ceil(groups.length / perPage));
+  const current = clampPage(page, pageCount);
+  const slice = groups.slice((current - 1) * perPage, current * perPage);
+  const rows = slice.length
+    ? await db
+        .select(noteSelect)
+        .from(notes)
+        .innerJoin(tags, eq(tags.id, notes.tagId))
+        .where(and(where, inArray(notes.position, slice)))
+        .orderBy(asc(notes.position), asc(notes.sub), asc(notes.id))
+    : [];
+  return { notes: rows.map(toNote), page: current, pageCount, total: groups.length };
+}
