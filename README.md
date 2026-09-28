@@ -18,15 +18,9 @@ Gom nhanh các đoạn text từ điện thoại (bot Telegram), trình duyệt 
    cp .env.example .env.local   # điền DATABASE_URL
    npm run db:migrate           # → Đã chạy: 0001_init.sql
    ```
-   > **Cập nhật từ bản cũ (nhiều tag → 1 tag có số):**
-   > 1. Neon → **Branches → Create branch** từ `main` để sao lưu: migration `0002` xoá vĩnh viễn bảng `note_tags`, ghi chú nhiều tag chỉ giữ tag đầu tiên.
-   > 2. Chạy lại `npm run db:migrate`, rồi push code để Vercel deploy ngay — giữa hai bước này web/bot cũ sẽ lỗi.
-   > 3. Build lại widget (mục "Cài widget Windows") — bản widget cũ không chuyển được tag với server mới.
-3. **Bot**: chat với @BotFather → `/newbot` → lấy token làm `TELEGRAM_BOT_TOKEN`.
-4. **Vercel**: *Add New Project* → import repo → **Root Directory = `web`** (Node.js ≥ 22) → thêm đủ biến trong `web/.env.example` (tạm để `TELEGRAM_OWNER_ID` trống) → Deploy.
-5. Nhắn `/start` cho bot → bot trả user ID → đặt `TELEGRAM_OWNER_ID` trên Vercel → **Redeploy**.
-6. Mở domain production → đăng nhập → **Cài đặt** → *Đăng ký webhook* → dòng "Webhook hiện tại" hiện ✓ đúng.
-7. Gửi thử một tin nhắn cho bot → bot trả "✅ Đã lưu #1".
+   > **Cập nhật từ bản cũ:** chạy lại `npm run db:migrate` rồi push code để Vercel deploy ngay (giữa hai bước web/bot cũ sẽ lỗi), sau đó build lại widget.
+   > - `0002`: nhiều tag → 1 tag có số (xoá bảng `note_tags`; nên tạo branch sao lưu Neon trước).
+   > - `0003`: thêm số comment (`#bài.comment`); không xoá dữ liệu.
 
 Khi thêm migration mới sau này: tạo `web/db/migrations/000N_ten.sql` rồi chạy lại `npm run db:migrate`.
 
@@ -57,6 +51,14 @@ Chép `publish/BangNote.Widget.exe` vào nơi cố định (vd: `C:\Tools\BangNo
 - Không kéo được từ app chạy bằng quyền Administrator (Windows chặn).
 
 Không muốn cài runtime: thay `--self-contained false` bằng `--self-contained true` (file ~70MB). Test: `cd widget && dotnet test`.
+
+## Bài & comment
+
+Mỗi tag gồm các **bài** `#1, #2…`, mỗi bài có **comment** `#1.1, #1.2…`.
+
+- Ghi chú mới mặc định là comment của bài cuối trong tag. Tự thành **bài mới** khi: tag rỗng · đổi nguồn gửi (web ↔ bot ↔ widget ↔ extension) · extension sang link bài khác · tick **Là bài mới** (web) · bấm **📌 Bài mới** (web, bot, widget).
+- **↳ Gộp vào bài trước** khi tách nhầm. **Đánh số lại** chạy trên toàn tag theo cách sắp xếp đang chọn.
+- Lọc 1 tag + "Theo số #": xem theo nhóm, ▸/▾ thu gọn, "Chỉ hiện bài viết", tick bài = chọn cả comment, kéo ⠿ bài hoặc comment. 20 bài/trang (chế độ khác 50 ghi chú/trang).
 
 ## Phát triển
 

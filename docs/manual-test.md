@@ -23,6 +23,12 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 - [ ] Trang Tag: tạo, đổi tên, đổi màu, xoá; tạo trùng khác dấu bị chặn; tag mặc định không xoá được.
 - [ ] Trang Cài đặt: đủ ✅ biến môi trường; webhook ✓ đúng.
 - [ ] Mở trên điện thoại: bố cục không vỡ, không cuộn ngang.
+- [ ] Web: thêm 2 ghi chú liền → `#n`, `#n.1`; tick "Là bài mới" → bài mới.
+- [ ] Bot sau web → bài mới; bot tiếp → comment; 📌 trên tin trả lời bot → tin đổi thành `Tag #m`.
+- [ ] Extension trên cùng bài FB (comment khác nhau) → comment; sang bài FB khác → bài mới.
+- [ ] Chế độ nhóm: thu gọn/mở, "Chỉ hiện bài viết", tick bài chọn cả comment, chuyển tag cả bài.
+- [ ] Kéo bài / kéo comment; 📌 giữa nhóm tách đúng; ↳ gộp đúng; Đánh số lại theo "Cũ nhất".
+- [ ] Phân trang: thanh trang, trang 2, `?page=999` → trang cuối.
 
 ## Bot Telegram
 - [ ] Gửi text → "✅ Đã lưu — Tag #n" + bàn phím tag; web thấy ghi chú nguồn Telegram.
@@ -59,3 +65,4 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 - [ ] Alt+Insert khi đang ở app khác → widget ẩn; bấm lại → hiện và được focus (Ctrl+V dùng được ngay).
 - [ ] Khởi động cùng Windows bật/tắt được; Thoát xoá icon khay.
 - [ ] `queue.json` hỏng → app vẫn chạy, có `queue.json.bad`.
+- [ ] Sau khi lưu comment hiện "Đã lưu — Tag #n.k" + nút 📌 Bài mới; bấm → "Đã lưu — Tag #m".
