@@ -6,6 +6,7 @@ vi.mock('@/lib/db/client', () => ({ getDb: () => ({}) }));
 
 import { Filters } from '@/components/Filters';
 import { NoteList } from '@/components/NoteList';
+import { Pager } from '@/components/Pager';
 import { QuickAdd } from '@/components/QuickAdd';
 import { EMPTY_FILTERS } from '@/lib/notes/filters';
 import type { Note, Tag } from '@/lib/notes/types';
@@ -28,7 +29,7 @@ const note: Note = {
 describe('render phía server của trang ghi chú', () => {
   it('lọc 1 tag + sort theo số → có nút Đánh số lại và tay nắm kéo', () => {
     const html = renderToString(
-      createElement(NoteList, { notes: [note], tags: [DEF, LS], exportQuery: 'tag=2', singleTag: LS, reorderable: true }),
+      createElement(NoteList, { notes: [note], tags: [DEF, LS], exportQuery: 'tag=2', singleTag: LS, reorderable: true, grouped: false, sort: 'newest', postsOnly: false }),
     );
     expect(html).toContain('Đánh số lại');
     expect(html).toContain('⠿');
@@ -41,7 +42,7 @@ describe('render phía server của trang ghi chú', () => {
   });
 
   it('danh sách hiện nội dung, tag, nguồn, link', () => {
-    const html = renderToString(createElement(NoteList, { notes: [note], tags: [DEF, LS], exportQuery: 'tag=2', singleTag: null, reorderable: false })).replaceAll('<!-- -->', '');
+    const html = renderToString(createElement(NoteList, { notes: [note], tags: [DEF, LS], exportQuery: 'tag=2', singleTag: null, reorderable: false, grouped: false, sort: 'newest', postsOnly: false })).replaceAll('<!-- -->', '');
     expect(html).toContain('Trận Bạch Đằng');
     expect(html).toContain('Lịch sử');
     expect(html).toContain('Lịch sử #3');
@@ -59,7 +60,7 @@ describe('render phía server của trang ghi chú', () => {
   });
 
   it('danh sách rỗng', () => {
-    expect(renderToString(createElement(NoteList, { notes: [], tags: [DEF], exportQuery: '', singleTag: null, reorderable: false }))).toContain('Không có ghi chú nào');
+    expect(renderToString(createElement(NoteList, { notes: [], tags: [DEF], exportQuery: '', singleTag: null, reorderable: false, grouped: false, sort: 'newest', postsOnly: false }))).toContain('Không có ghi chú nào');
   });
 
   it('bộ lọc giữ trạng thái đã chọn; thêm nhanh chỉ hiện tag thật', () => {
@@ -95,6 +96,11 @@ describe('render trang Tag', () => {
 });
 
 describe('ô sắp xếp trong bộ lọc', () => {
+  it('lọc 1 tag → có ô "Chỉ hiện bài viết"', () => {
+    const html = renderToString(createElement(Filters, { tags: [DEF, LS], filters: { ...EMPTY_FILTERS, tagIds: [2], sort: 'position' } }));
+    expect(html).toContain('name="posts"');
+  });
+
   const html = (f: Partial<typeof EMPTY_FILTERS>) =>
     renderToString(createElement(Filters, { tags: [DEF, LS], filters: { ...EMPTY_FILTERS, ...f } }));
 
@@ -108,3 +114,39 @@ describe('ô sắp xếp trong bộ lọc', () => {
   });
 });
 
+describe('chế độ nhóm & phân trang', () => {
+  const p = { ...note, id: 20, position: 4, sub: 0, content: 'Nội dung bài' };
+  const c1 = { ...note, id: 21, position: 4, sub: 1, content: 'Comment một' };
+  const c2 = { ...note, id: 22, position: 4, sub: 2, content: 'Comment hai' };
+  const render = (postsOnly: boolean) =>
+    renderToString(
+      createElement(NoteList, {
+        notes: [p, c1, c2], tags: [DEF, LS], exportQuery: 'tag=2', singleTag: LS, reorderable: true,
+        grouped: true, sort: 'position', postsOnly,
+      }),
+    ).replaceAll('<!-- -->', '');
+
+  it('bài + comment thụt vào, số #4 / #4.1, nút 📌 trên comment, ↳ trên bài', () => {
+    const html = render(false);
+    expect(html).toContain('data-group-lead="20"');
+    expect(html).toContain('Lịch sử #4');
+    expect(html).toContain('Lịch sử #4.2');
+    expect(html).toContain('Comment hai');
+    expect(html.match(/📌 Bài mới/g)).toHaveLength(2);
+    expect(html).toContain('↳ Gộp vào bài trước');
+  });
+
+  it('"Chỉ hiện bài viết" → ẩn comment, hiện số comment', () => {
+    const html = render(true);
+    expect(html).toContain('Nội dung bài');
+    expect(html).not.toContain('Comment hai');
+    expect(html).toContain('▸ 2 comment');
+  });
+
+  it('Pager: link giữ bộ lọc, đánh dấu trang hiện tại; 1 trang → không hiện', () => {
+    const html = renderToString(createElement(Pager, { page: 2, pageCount: 3, hrefFor: (n: number) => `/?tag=2&page=${n}` }));
+    expect(html).toContain('href="/?tag=2&amp;page=3"');
+    expect(html).toContain('aria-current="page"');
+    expect(renderToString(createElement(Pager, { page: 1, pageCount: 1, hrefFor: () => '/' }))).toBe('');
+  });
+});

@@ -3,16 +3,20 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { bulkMoveAction, deleteNotesAction, dropNoteAction, renumberAction } from '@/app/(admin)/actions';
 import { joinForCopy } from '@/lib/export/text';
-import { renumberConfirmText } from '@/lib/notes/filters';
+import { expandSelection, groupNotes, type NoteGroup } from '@/lib/groups';
+import { SORT_LABELS, renumberConfirmText } from '@/lib/notes/filters';
+import type { Sort } from '@/lib/notes/notes';
 import type { Note, Tag } from '@/lib/notes/types';
 import { ReorderSession } from '@/lib/reorder';
-import { applyRange } from '@/lib/selection';
+import { applyRange, idsBetween } from '@/lib/selection';
 import { NoteCard } from './NoteCard';
 import { TagPicker } from './TagPicker';
 
 type Drag = { anchorId: number; base: Set<number>; select: boolean };
+/** Đang kéo sắp xếp: cả bài (session trên lead các nhóm) hoặc một comment (session trên comment của nhóm `lead`). */
+type Reorder = { kind: 'post'; session: ReorderSession } | { kind: 'comment'; lead: number; session: ReorderSession };
 
-const EDGE = 48; // px gần mép màn hình thì tự cuộn khi đang kéo chọn
+const EDGE = 48; // px gần mép màn hình thì tự cuộn khi đang kéo
 const OPTION_KEYS = { number: 'bn-export-num', detail: 'bn-export-detail' } as const;
 type ExportOption = keyof typeof OPTION_KEYS;
 
@@ -22,14 +26,22 @@ export function NoteList({
   exportQuery,
   singleTag,
   reorderable,
+  grouped,
+  sort,
+  postsOnly,
 }: {
   notes: Note[];
   tags: Tag[];
   exportQuery: string;
   /** Đang lọc đúng 1 tag → cho phép Đánh số lại (noteCount = tổng số ghi chú của tag). */
   singleTag: (Tag & { noteCount?: number }) | null;
-  /** Lọc 1 tag + sort theo số → cho phép kéo sắp xếp. */
+  /** Cho phép kéo ⠿ (xem trọn một tag theo số). */
   reorderable: boolean;
+  /** Hiện theo nhóm bài / comment. */
+  grouped: boolean;
+  sort: Sort;
+  /** "Chỉ hiện bài viết": thu gọn hết comment. */
+  postsOnly: boolean;
 }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [picking, setPicking] = useState(false);
@@ -38,20 +50,66 @@ export function NoteList({
   const [options, setOptions] = useState({ number: true, detail: true });
   const [pending, startTransition] = useTransition();
 
-  // Thứ tự tạm trong lúc kéo sắp xếp; null = theo server.
-  const [order, setOrder] = useState<number[] | null>(null);
-  const reorderRef = useRef<ReorderSession | null>(null);
-  useEffect(() => setOrder(null), [notes]);
+  const groups = grouped ? groupNotes(notes) : [];
+  const groupsRef = useRef<NoteGroup[]>(groups);
+  groupsRef.current = groups;
+
+  // ---- thu gọn (nhớ theo tag) ----
+  const collapseKey = singleTag ? `bn-collapsed-${singleTag.id}` : null;
+  // Tính ngay khi khởi tạo để render phía server cũng đúng với "Chỉ hiện bài viết"
+  const [collapsed, setCollapsed] = useState<Set<number>>(() => new Set(postsOnly ? groups.map((g) => g.lead) : []));
+  useEffect(() => {
+    if (postsOnly) {
+      setCollapsed(new Set(groupsRef.current.map((g) => g.lead)));
+      return;
+    }
+    try {
+      const raw = collapseKey ? localStorage.getItem(collapseKey) : null;
+      setCollapsed(new Set(raw ? (JSON.parse(raw) as number[]) : []));
+    } catch {
+      setCollapsed(new Set());
+    }
+  }, [collapseKey, postsOnly, notes]);
+  const toggleCollapse = (lead: number) => {
+    const next = new Set(collapsed);
+    if (next.has(lead)) next.delete(lead);
+    else next.add(lead);
+    setCollapsed(next);
+    if (!postsOnly && collapseKey) {
+      try {
+        localStorage.setItem(collapseKey, JSON.stringify([...next]));
+      } catch {
+        // bỏ qua
+      }
+    }
+  };
+
+  // ---- kéo sắp xếp: thứ tự tạm; null = theo server ----
+  const [groupOrder, setGroupOrder] = useState<number[] | null>(null);
+  const [commentOrder, setCommentOrder] = useState<{ lead: number; ids: number[] } | null>(null);
+  const reorderRef = useRef<Reorder | null>(null);
+  useEffect(() => {
+    setGroupOrder(null);
+    setCommentOrder(null);
+  }, [notes]);
+
+  const byLead = new Map(groups.map((g) => [g.lead, g]));
   const byId = new Map(notes.map((n) => [n.id, n]));
-  const shown = (order ?? notes.map((n) => n.id)).map((id) => byId.get(id)!).filter(Boolean);
+  const orderedGroups = (groupOrder ?? groups.map((g) => g.lead)).map((l) => byLead.get(l)!).filter(Boolean);
+  const commentsOf = (g: NoteGroup) =>
+    commentOrder?.lead === g.lead ? commentOrder.ids.map((id) => byId.get(id)!).filter(Boolean) : g.comments;
+  const allNotes: Note[] = grouped ? orderedGroups.flatMap((g) => [...(g.post ? [g.post] : []), ...commentsOf(g)]) : notes;
+  const shown: Note[] = grouped
+    ? orderedGroups.flatMap((g) => [...(g.post ? [g.post] : []), ...(collapsed.has(g.lead) && g.post ? [] : commentsOf(g))])
+    : notes;
 
   const visibleIds = shown.map((n) => n.id);
   const idsRef = useRef(visibleIds);
   idsRef.current = visibleIds;
   const dragRef = useRef<Drag | null>(null);
   const anchorRef = useRef<number | null>(null);
-
-  const chosen = visibleIds.filter((id) => selected.has(id));
+  const allIds = allNotes.map((n) => n.id);
+  const chosen = allIds.filter((id) => selected.has(id));
 
   useEffect(() => {
     try {
@@ -73,46 +131,61 @@ export function NoteList({
     }
   };
 
-  // Đọc thứ tự từ ReorderSession (đồng bộ) chứ không từ state `order`, để thả nhanh vẫn lưu đúng.
-  const finishReorderRef = useRef<(next: number[] | null) => void>(() => undefined);
-  finishReorderRef.current = (next) => {
-    if (!singleTag || !next) return;
-    const tagId = singleTag.id;
+  const finishReorderRef = useRef<(movingId: number, targetId: number, after: boolean) => void>(() => undefined);
+  finishReorderRef.current = (movingId, targetId, after) => {
     startTransition(async () => {
-      const res = await dropNoteAction(next[0], next[1] ?? next[0], false);
+      const res = await dropNoteAction(movingId, targetId, after);
       if (res.error) {
         setError(res.error);
-        setOrder(null);
+        setGroupOrder(null);
+        setCommentOrder(null);
       }
     });
   };
 
   useEffect(() => {
+    const autoScroll = (e: PointerEvent) => {
+      if (e.clientY < EDGE) window.scrollBy(0, -16);
+      else if (e.clientY > window.innerHeight - EDGE) window.scrollBy(0, 16);
+    };
     const onMove = (e: PointerEvent) => {
-      const session = reorderRef.current;
-      if (session) {
-        if (e.clientY < EDGE) window.scrollBy(0, -16);
-        else if (e.clientY > window.innerHeight - EDGE) window.scrollBy(0, 16);
-        const over = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-note-id]');
-        if (over) {
-          const rect = over.getBoundingClientRect();
-          setOrder([...session.over(Number(over.dataset.noteId), e.clientY > rect.top + rect.height / 2)]);
+      const r = reorderRef.current;
+      if (r) {
+        autoScroll(e);
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        if (r.kind === 'post') {
+          const block = el?.closest<HTMLElement>('[data-group-lead]');
+          if (block) {
+            const rect = block.getBoundingClientRect();
+            setGroupOrder([...r.session.over(Number(block.dataset.groupLead), e.clientY > rect.top + rect.height / 2)]);
+          }
+        } else {
+          const card = el?.closest<HTMLElement>('[data-note-id]');
+          const block = card?.closest<HTMLElement>('[data-group-lead]');
+          if (card && block && Number(block.dataset.groupLead) === r.lead) {
+            const rect = card.getBoundingClientRect();
+            const ids = r.session.over(Number(card.dataset.noteId), e.clientY > rect.top + rect.height / 2);
+            setCommentOrder({ lead: r.lead, ids: [...ids] });
+          }
         }
         return;
       }
       const drag = dragRef.current;
       if (!drag) return;
-      if (e.clientY < EDGE) window.scrollBy(0, -16);
-      else if (e.clientY > window.innerHeight - EDGE) window.scrollBy(0, 16);
+      autoScroll(e);
       const card = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-note-id]');
-      if (card) setSelected(applyRange(idsRef.current, drag.base, drag.anchorId, Number(card.dataset.noteId), drag.select));
+      if (!card) return;
+      const current = Number(card.dataset.noteId);
+      const next = applyRange(idsRef.current, drag.base, drag.anchorId, current, drag.select);
+      setSelected(expandSelection(next, idsBetween(idsRef.current, drag.anchorId, current), drag.select, groupsRef.current));
     };
     const onUp = () => {
       dragRef.current = null;
-      const session = reorderRef.current;
-      if (session) {
+      const r = reorderRef.current;
+      if (r) {
         reorderRef.current = null;
-        finishReorderRef.current(session.finish());
+        const target = r.session.target;
+        if (r.session.finish() && target) finishReorderRef.current(r.session.movingId, target.id, target.after);
       }
     };
     window.addEventListener('pointermove', onMove);
@@ -129,41 +202,50 @@ export function NoteList({
     if (e.button !== 0) return;
     e.preventDefault();
     if (e.shiftKey && anchorRef.current !== null) {
-      setSelected(applyRange(visibleIds, selected, anchorRef.current, id, true));
+      const next = applyRange(visibleIds, selected, anchorRef.current, id, true);
+      setSelected(expandSelection(next, idsBetween(visibleIds, anchorRef.current, id), true, groups));
       return;
     }
     const select = !selected.has(id);
     dragRef.current = { anchorId: id, base: selected, select };
     anchorRef.current = id;
-    setSelected(applyRange(visibleIds, selected, id, id, select));
+    setSelected(expandSelection(applyRange(visibleIds, selected, id, id, select), [id], select, groups));
   };
 
-  const startReorder = (id: number, e: React.PointerEvent) => {
+  const toggle = (id: number) => {
+    const select = !selected.has(id);
+    const next = new Set(selected);
+    if (select) next.add(id);
+    else next.delete(id);
+    setSelected(expandSelection(next, [id], select, groups));
+  };
+
+  const startReorder = (note: Note, e: React.PointerEvent) => {
     // Lần kéo trước còn đang lưu → chờ, tránh danh sách nhảy về thứ tự cũ giữa chừng
-    if (e.button !== 0 || pending) return;
+    if (e.button !== 0 || pending || !grouped) return;
     e.preventDefault();
-    const ids = notes.map((n) => n.id);
-    reorderRef.current = new ReorderSession(ids, id);
-    setOrder(ids);
+    const group = groups.find((g) => g.post?.id === note.id || g.comments.some((c) => c.id === note.id));
+    if (!group) return;
+    if (note.sub === 0) {
+      const leads = groups.map((g) => g.lead);
+      reorderRef.current = { kind: 'post', session: new ReorderSession(leads, group.lead) };
+      setGroupOrder(leads);
+    } else {
+      const ids = group.comments.map((c) => c.id);
+      reorderRef.current = { kind: 'comment', lead: group.lead, session: new ReorderSession(ids, note.id) };
+      setCommentOrder({ lead: group.lead, ids });
+    }
   };
 
   const renumber = () => {
     if (!singleTag) return;
-    if (!confirm(renumberConfirmText(singleTag.name, singleTag.noteCount ?? visibleIds.length, 'Theo số #'))) return;
+    if (!confirm(renumberConfirmText(singleTag.name, singleTag.noteCount ?? notes.length, SORT_LABELS[sort]))) return;
     const tagId = singleTag.id;
     startTransition(async () => {
-      const res = await renumberAction(tagId, 'position');
+      const res = await renumberAction(tagId, sort);
       setError(res.error);
     });
   };
-
-  const toggle = (id: number) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
 
   const run = (fn: () => Promise<{ error?: string }>) =>
     startTransition(async () => {
@@ -176,18 +258,38 @@ export function NoteList({
     });
 
   const copyChosen = async () => {
-    await navigator.clipboard.writeText(joinForCopy(shown.filter((n) => selected.has(n.id))));
+    await navigator.clipboard.writeText(joinForCopy(allNotes.filter((n) => selected.has(n.id))));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
 
   const exportHref = (format: 'txt' | 'docx') => {
-    const params = [`format=${format}`, exportQuery, ...chosen.map((id) => `id=${id}`), options.number ? '' : 'num=0', options.detail ? '' : 'detail=0'].filter(Boolean);
+    const params = [
+      `format=${format}`,
+      exportQuery,
+      ...chosen.map((id) => `id=${id}`),
+      options.number ? '' : 'num=0',
+      options.detail ? '' : 'detail=0',
+    ].filter(Boolean);
     return `/api/export?${params.join('&')}`;
   };
   const exportScope = chosen.length ? `${chosen.length} đã chọn` : 'tất cả kết quả';
 
   if (!notes.length) return <p className="py-10 text-center text-slate-500">Không có ghi chú nào.</p>;
+
+  const card = (note: Note, extra: { collapse?: Parameters<typeof NoteCard>[0]['collapse']; affected?: number }) => (
+    <NoteCard
+      key={`${note.id}-${note.updatedAt.getTime()}`}
+      note={note}
+      tags={tags}
+      selected={selected.has(note.id)}
+      onToggle={() => toggle(note.id)}
+      onGutterPointerDown={(e) => startGutter(note.id, e)}
+      reorderable={reorderable}
+      onHandlePointerDown={(e) => startReorder(note, e)}
+      {...extra}
+    />
+  );
 
   return (
     <div className={`space-y-3 ${pending ? 'opacity-70' : ''}`}>
@@ -195,8 +297,8 @@ export function NoteList({
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
-            checked={chosen.length === notes.length}
-            onChange={(e) => setSelected(e.target.checked ? new Set(visibleIds) : new Set())}
+            checked={chosen.length === allIds.length}
+            onChange={(e) => setSelected(e.target.checked ? new Set(allIds) : new Set())}
           />
           Chọn tất cả
         </label>
@@ -218,7 +320,7 @@ export function NoteList({
           </button>
         </span>
         {singleTag && (
-          <button onClick={renumber} className="rounded-lg border bg-white px-3 py-1" disabled={pending} title="Gán lại #1…n theo thứ tự đang hiển thị">
+          <button onClick={renumber} className="rounded-lg border bg-white px-3 py-1" disabled={pending} title="Gán lại #1…n cho toàn tag theo cách sắp xếp đang chọn">
             Đánh số lại
           </button>
         )}
@@ -239,7 +341,7 @@ export function NoteList({
           </a>
         </span>
         <span className="w-full text-xs text-slate-500 sm:w-auto">
-          Xuất: {exportScope} · Kéo cột ô chọn để chọn nhanh
+          Xuất: {exportScope} · Kéo cột ô chọn để chọn nhanh{grouped ? ' · Tick bài = chọn cả comment' : ''}
         </span>
         {error && <span className="text-red-600">{error}</span>}
       </div>
@@ -252,18 +354,29 @@ export function NoteList({
           onCancel={() => setPicking(false)}
         />
       )}
-      {shown.map((note) => (
-        <NoteCard
-          key={`${note.id}-${note.updatedAt.getTime()}`}
-          note={note}
-          tags={tags}
-          selected={selected.has(note.id)}
-          onToggle={() => toggle(note.id)}
-          onGutterPointerDown={(e) => startGutter(note.id, e)}
-          reorderable={reorderable}
-          onHandlePointerDown={(e) => startReorder(note.id, e)}
-        />
-      ))}
+      {grouped
+        ? orderedGroups.map((g) => {
+            const comments = commentsOf(g);
+            const isCollapsed = collapsed.has(g.lead) && !!g.post;
+            return (
+              <div key={g.lead} data-group-lead={g.lead} className="space-y-2">
+                {g.post &&
+                  card(g.post, {
+                    collapse: comments.length
+                      ? { collapsed: isCollapsed, count: comments.length, onToggle: () => toggleCollapse(g.lead) }
+                      : undefined,
+                    affected: 1 + comments.length,
+                  })}
+                {!isCollapsed &&
+                  comments.map((c, i) => (
+                    <div key={c.id} className="ml-6 border-l-2 border-slate-200 pl-2 sm:ml-10">
+                      {card(c, { affected: comments.length - i })}
+                    </div>
+                  ))}
+              </div>
+            );
+          })
+        : notes.map((n) => card(n, {}))}
     </div>
   );
 }

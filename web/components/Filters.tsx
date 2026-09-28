@@ -23,6 +23,12 @@ export function Filters({ tags, filters }: { tags: Tag[]; filters: NoteFilters }
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <SortSelect filters={filters} />
         <DateFilter filters={filters} />
+        {filters.tagIds.length === 1 && (
+          <label className="flex items-center gap-1" title="Thu gọn hết comment, chỉ hiện các bài">
+            <input type="checkbox" name="posts" value="1" defaultChecked={filters.posts} />
+            Chỉ hiện bài viết
+          </label>
+        )}
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
         {tags.map((tag) => (

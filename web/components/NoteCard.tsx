@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { deleteNotesAction, moveNoteAction, updateNoteAction } from '@/app/(admin)/actions';
+import { deleteNotesAction, mergePostAction, moveNoteAction, splitPostAction, updateNoteAction } from '@/app/(admin)/actions';
 import { formatRelative } from '@/lib/format';
 import { SOURCE_LABELS } from '@/lib/notes/filters';
+import { formatNumber } from '@/lib/notes/number';
 import type { Note, Tag } from '@/lib/notes/types';
 import { TagChip } from './TagChip';
 import { TagPicker } from './TagPicker';
@@ -16,6 +17,8 @@ export function NoteCard({
   onGutterPointerDown,
   reorderable = false,
   onHandlePointerDown,
+  collapse,
+  affected,
 }: {
   note: Note;
   tags: Tag[];
@@ -27,6 +30,10 @@ export function NoteCard({
   /** Hiện tay nắm ⠿ để kéo sắp xếp (chỉ khi lọc 1 tag + sort theo số). */
   reorderable?: boolean;
   onHandlePointerDown?: (e: React.PointerEvent) => void;
+  /** Thẻ bài có comment trong chế độ nhóm: nút thu gọn/mở. */
+  collapse?: { collapsed: boolean; count: number; onToggle: () => void };
+  /** Số ghi chú bị đổi số khi bấm 📌/↳ (để hỏi xác nhận khi > 1); không biết → coi như nhiều. */
+  affected?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -35,6 +42,8 @@ export function NoteCard({
   const [error, setError] = useState<string>();
   const [copied, setCopied] = useState(false);
   const [pending, startTransition] = useTransition();
+  const number = formatNumber(note.position, note.sub);
+  const label = `${note.tags[0].name} #${number}`;
 
   const long = note.content.split('\n').length > 6 || note.content.length > 600;
 
@@ -67,7 +76,7 @@ export function NoteCard({
           checked={selected}
           onChange={onToggle}
           className="pointer-events-none"
-          aria-label={`Chọn ghi chú ${note.tags[0].name} #${note.position}`}
+          aria-label={`Chọn ghi chú ${label}`}
         />
       </div>
       <div className="flex items-start gap-3">
@@ -121,8 +130,13 @@ export function NoteCard({
 
       <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
         <button onClick={() => setPicking(!picking)} className="flex flex-wrap gap-1" title="Chuyển tag">
-          <TagChip tag={note.tags[0]} position={note.position} />
+          <TagChip tag={note.tags[0]} number={number} />
         </button>
+        {collapse && (
+          <button onClick={collapse.onToggle} className="text-xs hover:text-slate-900" title={collapse.collapsed ? 'Mở comment' : 'Thu gọn comment'}>
+            {collapse.collapsed ? `▸ ${collapse.count} comment` : '▾'}
+          </button>
+        )}
         <span>
           {SOURCE_LABELS[note.source]} ·{' '}
           <time dateTime={note.createdAt.toISOString()} suppressHydrationWarning>
@@ -135,6 +149,27 @@ export function NoteCard({
           </a>
         )}
         <span className="ml-auto flex gap-3">
+          {note.sub > 0 && (
+            <button
+              onClick={() =>
+                ((affected ?? 1) <= 1 || confirm(`Tách ${label} và các comment sau nó thành bài mới?`)) &&
+                run(() => splitPostAction(note.id))
+              }
+              className="hover:text-slate-900"
+              title="Ghi chú này là nội dung bài viết mới"
+            >
+              📌 Bài mới
+            </button>
+          )}
+          {note.sub === 0 && note.position > 1 && (
+            <button
+              onClick={() => confirm(`Gộp bài ${label} (và comment của nó) vào bài trước?`) && run(() => mergePostAction(note.id))}
+              className="hover:text-slate-900"
+              title="Biến bài này thành comment của bài trước"
+            >
+              ↳ Gộp vào bài trước
+            </button>
+          )}
           <button onClick={copy} className="hover:text-slate-900">
             {copied ? 'Đã copy' : 'Copy'}
           </button>
@@ -142,7 +177,7 @@ export function NoteCard({
             Sửa
           </button>
           <button
-            onClick={() => confirm(`Xoá ghi chú ${note.tags[0].name} #${note.position}?`) && run(() => deleteNotesAction([note.id]))}
+            onClick={() => confirm(`Xoá ghi chú ${label}?`) && run(() => deleteNotesAction([note.id]))}
             className="hover:text-red-600"
           >
             Xoá
