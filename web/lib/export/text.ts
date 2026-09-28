@@ -1,4 +1,5 @@
 import { vnDateString, vnDateTimeString } from '@/lib/notes/dates';
+import { formatNumber } from '@/lib/notes/number';
 import type { Note } from '@/lib/notes/types';
 
 export interface ExportOptions {
@@ -13,7 +14,7 @@ export const FULL_EXPORT: ExportOptions = { number: true, detail: true };
 /** Dòng đầu của ghi chú khi xuất; chuỗi rỗng nếu không bật phần nào. */
 export function noteHeader(note: Note, opts: ExportOptions = FULL_EXPORT): string {
   const parts = [
-    opts.number ? `#${note.position}` : '',
+    opts.number ? `#${formatNumber(note.position, note.sub)}` : '',
     ...(opts.detail ? [note.tags.map((t) => t.name).join(', '), vnDateTimeString(note.createdAt), note.sourceUrl ?? ''] : []),
   ];
   return parts.filter(Boolean).join(' · ');

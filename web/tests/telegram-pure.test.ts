@@ -53,7 +53,10 @@ describe('buildNoteKeyboard', () => {
         { text: 'Y học', callback_data: 't:12:3' },
       ],
       [{ text: 'Văn học', callback_data: 't:12:4' }],
-      [{ text: '🗑 Xoá', callback_data: 'd:12' }],
+      [
+        { text: '📌 Bài mới', callback_data: 'n:12' },
+        { text: '🗑 Xoá', callback_data: 'd:12' },
+      ],
     ]);
   });
 
@@ -67,6 +70,7 @@ describe('parseCallbackData', () => {
   it('đọc toggle và delete, từ chối dữ liệu lạ', () => {
     expect(parseCallbackData('t:5:2')).toEqual({ kind: 'toggle', noteId: 5, tagId: 2 });
     expect(parseCallbackData('d:5')).toEqual({ kind: 'delete', noteId: 5 });
+    expect(parseCallbackData('n:5')).toEqual({ kind: 'newpost', noteId: 5 });
     expect(parseCallbackData('x:5')).toBeNull();
     expect(parseCallbackData('t:5')).toBeNull();
     expect(parseCallbackData('')).toBeNull();
@@ -76,5 +80,6 @@ describe('parseCallbackData', () => {
 describe('savedLabel', () => {
   it('Tag #n', () => {
     expect(savedLabel('Temp', 3)).toBe('Temp #3');
+    expect(savedLabel('Temp', 5, 3)).toBe('Temp #5.3');
   });
 });

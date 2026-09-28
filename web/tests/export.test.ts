@@ -21,6 +21,10 @@ const n1: Note = {
 const n2: Note = { ...n1, id: 13, content: 'Hải Thượng Lãn Ông', sourceUrl: null, sourceTitle: null, tags: [YH] };
 
 describe('text export', () => {
+  it('comment hiện dạng #bài.comment', () => {
+    expect(noteHeader({ ...n1, position: 5, sub: 2 }, { number: true, detail: false })).toBe('#5.2');
+  });
+
   it('dòng đầu theo tuỳ chọn: số # là số trong tag, không có số id', () => {
     expect(noteHeader(n1)).toBe('#3 · Lịch sử, Y học · 27/09/2026 14:05 · https://vi.wikipedia.org/x');
     expect(noteHeader(n1, { number: true, detail: false })).toBe('#3');

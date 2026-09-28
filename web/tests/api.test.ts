@@ -8,6 +8,7 @@ vi.mock('@/lib/db/client', () => ({ getDb: () => h.db }));
 import { GET as getTags } from '@/app/api/tags/route';
 import { POST as postNote } from '@/app/api/notes/route';
 import { PUT as putNoteTags } from '@/app/api/notes/[id]/tags/route';
+import { POST as postNewPost } from '@/app/api/notes/[id]/new-post/route';
 
 let t: TestDb;
 beforeAll(async () => {
@@ -121,11 +122,25 @@ describe('PUT /api/notes/:id/tags', () => {
     expect(body.id).toBe(1);
     expect(body.tags.map((x: { name: string }) => x.name)).toEqual(['Lịch sử']);
     expect(body.position).toBe(1);
+    expect(body.sub).toBe(0);
   });
 
   it('note không tồn tại → 404; id sai → 400; thiếu key → 401', async () => {
     expect((await putNoteTags(req('PUT', '/api/notes/999/tags', { tagIds: [] }), ctx('999'))).status).toBe(404);
     expect((await putNoteTags(req('PUT', '/api/notes/abc/tags', { tagIds: [] }), ctx('abc'))).status).toBe(400);
     expect((await putNoteTags(req('PUT', '/api/notes/1/tags', { tagIds: [] }, null), ctx('1'))).status).toBe(401);
+  });
+});
+
+describe('POST /api/notes/:id/new-post', () => {
+  it('tách comment thành bài mới; thiếu key → 401; không có → 404', async () => {
+    await postNote(req('POST', '/api/notes', { content: 'bài', source: 'widget' }));
+    const c = await (await postNote(req('POST', '/api/notes', { content: 'c', source: 'widget' }))).json();
+    expect(c.sub).toBe(1);
+    const res = await postNewPost(req('POST', `/api/notes/${c.id}/new-post`), ctx(String(c.id)));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ id: c.id, position: 2, sub: 0, tags: [{ name: 'Chưa phân loại' }] });
+    expect((await postNewPost(req('POST', '/api/notes/1/new-post', undefined, null), ctx('1'))).status).toBe(401);
+    expect((await postNewPost(req('POST', '/api/notes/999/new-post'), ctx('999'))).status).toBe(404);
   });
 });

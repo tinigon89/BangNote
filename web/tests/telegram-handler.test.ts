@@ -45,6 +45,12 @@ function cb(data: string, from = OWNER): TgUpdate {
 const calls = (method: string) => tg.mock.calls.filter(([m]) => m === method).map(([, p]) => p as Record<string, any>);
 
 describe('tin nhắn', () => {
+  it('gửi tiếp cùng nguồn → comment "#1.1"', async () => {
+    await handleUpdate(t.db, msg('bài viết'), config);
+    await handleUpdate(t.db, msg('comment'), config);
+    expect(calls('sendMessage')[1].text).toBe('✅ Đã lưu — Chưa phân loại #1.1');
+  });
+
   it('/start trả user ID cho cả người lạ, không lưu gì', async () => {
     await handleUpdate(t.db, msg('/start', STRANGER), config);
     expect(calls('sendMessage')[0].text).toContain(`${STRANGER}`);
@@ -139,6 +145,16 @@ describe('tin nhắn', () => {
 });
 
 describe('callback', () => {
+  it('📌 Bài mới: comment thành bài mới, sửa tin nhắn; đã là bài → báo', async () => {
+    await createNote(t.db, { content: 'bài', source: 'telegram' });
+    const c = await createNote(t.db, { content: 'c', source: 'telegram' });
+    await handleUpdate(t.db, cb(`n:${c.id}`), config);
+    expect(calls('editMessageText')[0]).toMatchObject({ message_id: 60, text: '✅ Đã lưu — Chưa phân loại #2' });
+    expect(calls('answerCallbackQuery')[0]).toMatchObject({ text: '📌 Bài mới #2' });
+    await handleUpdate(t.db, cb(`n:${c.id}`), config);
+    expect(calls('answerCallbackQuery')[1]).toMatchObject({ text: 'Đã là bài #2' });
+  });
+
   it('bấm tag khác → chuyển tag, sửa tin nhắn thành "Tag #n" kèm bàn phím mới', async () => {
     const ls = await createTag(t.db, { name: 'Lịch sử' });
     const note = await createNote(t.db, { content: 'x', source: 'telegram' });
