@@ -365,12 +365,13 @@ export function NoteList({
                     collapse: comments.length
                       ? { collapsed: isCollapsed, count: comments.length, onToggle: () => toggleCollapse(g.lead) }
                       : undefined,
-                    affected: 1 + comments.length,
+                    // Chỉ biết chính xác số ghi chú bị đổi khi xem trọn tag (không lọc thêm)
+                    affected: reorderable ? 1 + comments.length : undefined,
                   })}
                 {!isCollapsed &&
                   comments.map((c, i) => (
                     <div key={c.id} className="ml-6 border-l-2 border-slate-200 pl-2 sm:ml-10">
-                      {card(c, { affected: comments.length - i })}
+                      {card(c, { affected: reorderable ? comments.length - i : undefined })}
                     </div>
                   ))}
               </div>

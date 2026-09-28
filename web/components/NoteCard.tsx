@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { deleteNotesAction, mergePostAction, moveNoteAction, splitPostAction, updateNoteAction } from '@/app/(admin)/actions';
 import { formatRelative } from '@/lib/format';
 import { SOURCE_LABELS } from '@/lib/notes/filters';
+import { splitNeedsConfirm } from '@/lib/groups';
 import { formatNumber } from '@/lib/notes/number';
 import type { Note, Tag } from '@/lib/notes/types';
 import { TagChip } from './TagChip';
@@ -152,7 +153,7 @@ export function NoteCard({
           {note.sub > 0 && (
             <button
               onClick={() =>
-                ((affected ?? 1) <= 1 || confirm(`Tách ${label} và các comment sau nó thành bài mới?`)) &&
+                (!splitNeedsConfirm(affected) || confirm(`Tách ${label} và các comment sau nó thành bài mới?`)) &&
                 run(() => splitPostAction(note.id))
               }
               className="hover:text-slate-900"

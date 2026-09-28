@@ -6,12 +6,13 @@ import { requireSession } from '@/lib/auth/require';
 import { getDb } from '@/lib/db/client';
 import { DomainError } from '@/lib/notes/errors';
 import { SORTS, createNote, deleteNotes, updateNoteContent, type Sort } from '@/lib/notes/notes';
+import { noteIdsInput } from '@/lib/notes/validation';
 import { dropNote, mergeIntoPrevious, moveNote, moveNotes, renumberTag, splitPost } from '@/lib/notes/posts';
 
 export type ActionState = { ok?: boolean; error?: string };
 
 const id = z.number().int().positive();
-const ids = z.array(id).max(500);
+const ids = noteIdsInput;
 const tagId = id.nullable();
 
 async function run(fn: () => Promise<unknown>): Promise<ActionState> {

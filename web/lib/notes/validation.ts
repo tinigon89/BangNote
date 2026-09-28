@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { SOURCES } from '@/lib/db/schema';
+import { MAX_LIST_LIMIT } from './notes';
 
 const tagIds = z.array(z.number().int().positive()).max(50);
 
@@ -21,3 +22,6 @@ export const createNoteBody = z.object({
 export const setTagsBody = z.object({ tagIds });
 
 export const noteIdParam = z.coerce.number().int().positive();
+
+/** Id cho thao tác hàng loạt: một trang nhóm (20 bài + mọi comment) có thể vượt xa 500. */
+export const noteIdsInput = z.array(z.number().int().positive()).max(MAX_LIST_LIMIT);

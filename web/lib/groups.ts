@@ -40,3 +40,11 @@ export function expandSelection(next: Set<number>, changed: number[], select: bo
   }
   return out;
 }
+
+/**
+ * 📌 có hỏi xác nhận không: chỉ bỏ qua khi biết chắc chỉ đổi đúng 1 ghi chú.
+ * `affected` không rõ (chế độ phẳng, hoặc đang lọc nên không thấy hết comment) → luôn hỏi.
+ */
+export function splitNeedsConfirm(affected: number | undefined): boolean {
+  return affected === undefined || affected > 1;
+}
