@@ -18,6 +18,7 @@ Gom nhanh các đoạn text từ điện thoại (bot Telegram), trình duyệt 
    cp .env.example .env.local   # điền DATABASE_URL
    npm run db:migrate           # → Đã chạy: 0001_init.sql
    ```
+   > Cập nhật từ bản cũ: chạy lại `npm run db:migrate` (migration `0002` chuyển mỗi ghi chú về 1 tag và đánh số theo tag) ngay trước khi deploy code mới — giữa hai bước này web/bot cũ sẽ lỗi.
 3. **Bot**: chat với @BotFather → `/newbot` → lấy token làm `TELEGRAM_BOT_TOKEN`.
 4. **Vercel**: *Add New Project* → import repo → **Root Directory = `web`** (Node.js ≥ 22) → thêm đủ biến trong `web/.env.example` (tạm để `TELEGRAM_OWNER_ID` trống) → Deploy.
 5. Nhắn `/start` cho bot → bot trả user ID → đặt `TELEGRAM_OWNER_ID` trên Vercel → **Redeploy**.
@@ -48,7 +49,7 @@ Chép `publish/BangNote.Widget.exe` vào nơi cố định (vd: `C:\Tools\BangNo
 
 - Kéo thả chữ đã chọn vào ô nổi, hoặc bấm vào ô rồi `Ctrl+V`.
 - **Alt+Insert** (ở bất kỳ app nào) để ẩn/hiện widget. Laptop có thể cần bấm kèm `Fn`. Nếu app khác đã chiếm tổ hợp này, widget báo ở khay và bạn dùng icon khay thay thế.
-- Sau khi lưu, bấm nút tag trong 5 giây để chuyển tag.
+- Sau khi lưu, widget hiện "Đã lưu — Tag #n"; bấm nút tag khác trong 5 giây để chuyển tag.
 - Mất mạng / sai key: ghi chú được giữ ở `%AppData%\BangNote\queue.json` và tự gửi lại mỗi phút.
 - Không kéo được từ app chạy bằng quyền Administrator (Windows chặn).
 

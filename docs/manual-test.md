@@ -15,7 +15,11 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 - [ ] Kéo chuột dọc cột ô chọn bên trái → chọn nhiều thẻ; kéo từ thẻ đang chọn → bỏ chọn; Shift+click chọn cả đoạn; kéo trên chữ vẫn bôi đen bình thường.
 - [ ] Copy (n) chép nội dung các thẻ đã chọn, cách nhau một dòng trống.
 - [ ] Xuất TXT / Xuất Word: không chọn gì → toàn bộ kết quả lọc; có chọn → chỉ các thẻ đã chọn; file Word mở được trong Word.
-- [ ] Bỏ tick "Kèm tag, ngày giờ, link" → file xuất chỉ còn `#xx` + nội dung; tải lại trang vẫn nhớ lựa chọn.
+- [ ] Xuất với 4 tổ hợp "Kèm số #" / "Kèm tag, ngày giờ, link"; giữa các ghi chú chỉ một dòng trống; tải lại trang vẫn nhớ lựa chọn.
+- [ ] Chip hiện `Tên tag #n`; bấm chip → chọn tag khác → ghi chú nhận số cuối dãy của tag mới.
+- [ ] Lọc 1 tag → mặc định "Theo số #", có nút "Đánh số lại" và tay nắm ⠿; kéo ⠿ đổi thứ tự và số liền mạch.
+- [ ] Sort "Cũ nhất" + "Đánh số lại" → số theo thời gian tạo.
+- [ ] Xoá hết ghi chú trong một tag → ghi chú mới vào tag đó là `#1`.
 - [ ] Trang Tag: tạo, đổi tên, đổi màu, xoá; tạo trùng khác dấu bị chặn; tag mặc định không xoá được.
 - [ ] Trang Cài đặt: đủ ✅ biến môi trường; webhook ✓ đúng.
 - [ ] Mở trên điện thoại: bố cục không vỡ, không cuộn ngang.
@@ -27,7 +31,8 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 - [ ] `#LichSu nội dung` → gắn tag Lịch sử, nội dung không còn hashtag.
 - [ ] `nội dung #khongco` → lưu + cảnh báo "Không có tag #khongco".
 - [ ] Chỉ gửi `#LichSu` → "Nội dung trống, không lưu".
-- [ ] Bấm tag trên bàn phím → ✓ di chuyển đúng; bấm "Chưa phân loại" → bỏ hết tag thật.
+- [ ] Trả lời "✅ Đã lưu — Tag #n"; bấm tag khác → tin nhắn đổi thành tag mới + số mới; bấm tag hiện tại → không đổi.
+- [ ] Gõ 2 hashtag → gắn tag đầu + cảnh báo "Chỉ gắn 1 tag".
 - [ ] Bấm 🗑 Xoá → tin nhắn đổi thành "🗑 Đã xoá #n", web không còn ghi chú.
 - [ ] `/tags`, `/recent` trả kết quả đúng.
 - [ ] Tài khoản Telegram khác gửi text → bot im lặng; `/start` → chỉ trả ID.
@@ -45,7 +50,7 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 ## Widget Windows
 - [ ] Lần đầu chạy tự mở Cài đặt; URL sai báo lỗi; "Kiểm tra" báo số tag.
 - [ ] Kéo thả từ Chrome, Word, Notepad → "Đã lưu #n"; ghi chú nguồn Widget trên web.
-- [ ] Bấm tag trong 5 giây → tag đổi trên web; bấm "Chưa phân loại" → bỏ hết tag thật.
+- [ ] Hiện "Đã lưu — Tag #n"; bấm chip tag khác trong 5 giây → chuyển tag, nhãn đổi số.
 - [ ] `Ctrl+V` khi widget đang được chọn → lưu clipboard.
 - [ ] Kéo file (không phải text) → không nhận.
 - [ ] Mất mạng → cam "đang chờ gửi"; có mạng lại → tự gửi trong ≤ 60 giây.

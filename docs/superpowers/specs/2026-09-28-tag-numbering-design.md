@@ -36,12 +36,13 @@ Chuyển dữ liệu cũ:
 | Xoá / chuyển đi | Giữ nguyên số của các ghi chú còn lại (có chỗ trống) |
 | Xoá tag | Ghi chú của nó chuyển về tag mặc định, nối tiếp cuối dãy theo thứ tự số cũ |
 | Đánh số lại (một tag) | Gán 1…n theo **thứ tự đang hiển thị** (sort + bộ lọc hiện tại, trong tag đó) |
+| Bấm nút Telegram của tag đã bị xoá | Không đổi, trả lời "Tag không còn" |
 | Kéo sắp xếp lại (một tag, sort "Theo số #") | Đặt ghi chú vào vị trí mới rồi gán 1…n cho **toàn bộ tag** theo thứ tự mới |
 
 Chọn tag ở mọi nơi là **chọn 1**:
 - Hàm server duy nhất `moveNote(db, noteId, tagId | null)` (null → tag mặc định). API giữ dạng `tagIds: number[]`: lấy tag thật đầu tiên còn tồn tại, không có → mặc định.
 - Admin web: bộ chọn tag trên thẻ và "Chuyển tag" hàng loạt là radio (có mục "Chưa phân loại"). Chuyển hàng loạt nối tiếp theo thứ tự đang hiển thị.
-- Telegram: bấm tag khác → chuyển sang tag đó; bấm tag hiện tại → không đổi. Hashtag: lấy tag khớp đầu tiên; khớp nhiều hơn 1 → cảnh báo "Chỉ gắn 1 tag: #X".
+- Telegram: bấm tag khác → chuyển sang tag đó; bấm tag hiện tại → không đổi. Hashtag: lấy tag khớp đầu tiên; khớp nhiều hơn 1 → cảnh báo "Chỉ gắn 1 tag: <tên tag>".
 - Widget: bấm chip → chuyển sang tag đó (chip hiện tại có ✓).
 - Extension: không đổi (vốn gửi 1 tag).
 
