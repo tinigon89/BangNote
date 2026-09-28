@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_FILTERS, canReorder, defaultSort, filtersToQuery, parseNoteFilters, toListFilter } from '@/lib/notes/filters';
+import { EMPTY_FILTERS, canReorder, defaultSort, renumberConfirmText, filtersToQuery, parseNoteFilters, toListFilter } from '@/lib/notes/filters';
 
 describe('parseNoteFilters', () => {
   it('mặc định', () => {
@@ -95,5 +95,16 @@ describe('canReorder', () => {
     expect(canReorder({ ...base, q: 'x' })).toBe(false);
     expect(canReorder({ ...base, sources: ['web'] })).toBe(false);
     expect(canReorder({ ...base, date: 'today' })).toBe(false);
+  });
+});
+
+describe('renumberConfirmText', () => {
+  it('đang hiện đủ cả tag', () => {
+    expect(renumberConfirmText('Temp', 5, 5)).toBe('Đánh số lại 5 ghi chú trong tag "Temp" theo thứ tự đang hiển thị?');
+  });
+  it('chỉ hiện một phần → nói rõ phần còn lại đánh tiếp', () => {
+    expect(renumberConfirmText('Temp', 3, 10)).toBe(
+      'Đánh số lại tag "Temp": 3 ghi chú đang hiện thành #1–#3 theo thứ tự này, 7 ghi chú còn lại đánh tiếp từ #4?',
+    );
   });
 });

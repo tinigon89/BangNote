@@ -57,6 +57,14 @@ export async function resolveTag(db: DB, tagId: number | null): Promise<Tag> {
   return getDefaultTag(db);
 }
 
+/**
+ * Khoá dòng tag tới hết transaction để hai lần lưu cùng lúc vào một tag không lấy trùng số.
+ * Gọi trong transaction, trước `nextPosition`.
+ */
+export async function lockTag(db: DB, tagId: number): Promise<void> {
+  await db.execute(sql`SELECT id FROM tags WHERE id = ${tagId}::int FOR UPDATE`);
+}
+
 export async function nextPosition(db: DB, tagId: number): Promise<number> {
   const [row] = await db
     .select({ max: sql<number | null>`max(${notes.position})` })
@@ -75,6 +83,7 @@ export async function moveNote(db: DB, noteId: number, tagId: number | null): Pr
     if (!note) throw new DomainError('not_found', 'Không tìm thấy ghi chú');
     const tag = await resolveTag(tx, tagId);
     if (tag.id === note.tagId) return { tag, position: note.position };
+    await lockTag(tx, tag.id);
     const position = await nextPosition(tx, tag.id);
     await tx.update(notes).set({ tagId: tag.id, position, updatedAt: new Date() }).where(eq(notes.id, noteId));
     return { tag, position };
@@ -98,11 +107,12 @@ export async function renumberTag(db: DB, tagId: number, orderedIds: number[]): 
     const chosenSet = new Set(chosen);
     const order = [...chosen, ...rows.map((r) => r.id).filter((id) => !chosenSet.has(id))];
     if (!order.length) return;
-    const values = sql.join(
-      order.map((id, i) => sql`(${id}::int, ${i + 1}::int)`),
-      sql`, `,
-    );
-    await tx.execute(sql`UPDATE notes n SET position = v.pos FROM (VALUES ${values}) AS v(id, pos) WHERE n.id = v.id`);
+    // 2 tham số mảng thay vì 2 tham số/ghi chú → không vướng giới hạn 65535 tham số của Postgres
+    const positions = order.map((_, i) => i + 1);
+    await tx.execute(sql`
+      UPDATE notes n SET position = v.pos
+      FROM unnest(${sql.param(order)}::int[], ${sql.param(positions)}::int[]) AS v(id, pos)
+      WHERE n.id = v.id`);
   });
 }
 
@@ -157,6 +167,7 @@ export async function deleteTag(db: DB, id: number): Promise<void> {
     if (!tag) throw new DomainError('not_found', 'Không tìm thấy tag');
     if (tag.isDefault) throw new DomainError('invalid', 'Không thể xoá tag mặc định');
     const def = await getDefaultTag(tx);
+    await lockTag(tx, def.id);
     const start = await nextPosition(tx, def.id);
     await tx.execute(sql`
       UPDATE notes n SET tag_id = ${def.id}::int, position = ${start}::int - 1 + r.rn::int

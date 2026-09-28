@@ -6,7 +6,7 @@ import { requireSession } from '@/lib/auth/require';
 import { getDb } from '@/lib/db/client';
 import { PAGE_SIZE, canReorder, filtersToQuery, parseNoteFilters, toListFilter } from '@/lib/notes/filters';
 import { listNotes } from '@/lib/notes/notes';
-import { listTags } from '@/lib/notes/tags';
+import { listTagsWithCounts } from '@/lib/notes/tags';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,7 @@ export default async function NotesPage({
   await requireSession();
   const filters = parseNoteFilters(await searchParams);
   const db = getDb();
-  const [tags, result] = await Promise.all([listTags(db), listNotes(db, toListFilter(filters))]);
+  const [tags, result] = await Promise.all([listTagsWithCounts(db), listNotes(db, toListFilter(filters))]);
   const singleTag = filters.tagIds.length === 1 ? (tags.find((t) => t.id === filters.tagIds[0]) ?? null) : null;
   const more = filtersToQuery({ ...filters, limit: Math.min(filters.limit + PAGE_SIZE, 500) });
 

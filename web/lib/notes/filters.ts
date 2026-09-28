@@ -60,6 +60,12 @@ export function canReorder(f: NoteFilters): boolean {
   return f.tagIds.length === 1 && f.sort === 'position' && !f.q && !f.sources.length && !f.date;
 }
 
+/** Câu hỏi xác nhận nút "Đánh số lại": nói rõ khi chỉ một phần tag đang hiện. */
+export function renumberConfirmText(tagName: string, visible: number, total: number): string {
+  if (visible >= total) return `Đánh số lại ${visible} ghi chú trong tag "${tagName}" theo thứ tự đang hiển thị?`;
+  return `Đánh số lại tag "${tagName}": ${visible} ghi chú đang hiện thành #1–#${visible} theo thứ tự này, ${total - visible} ghi chú còn lại đánh tiếp từ #${visible + 1}?`;
+}
+
 type SearchParams = Record<string, string | string[] | undefined>;
 
 const all = (v: string | string[] | undefined): string[] => (v === undefined ? [] : Array.isArray(v) ? v : [v]);

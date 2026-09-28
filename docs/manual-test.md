@@ -25,7 +25,7 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 - [ ] Mở trên điện thoại: bố cục không vỡ, không cuộn ngang.
 
 ## Bot Telegram
-- [ ] Gửi text → "✅ Đã lưu #n" + bàn phím tag; web thấy ghi chú nguồn Telegram.
+- [ ] Gửi text → "✅ Đã lưu — Tag #n" + bàn phím tag; web thấy ghi chú nguồn Telegram.
 - [ ] Forward tin từ chat khác → lưu được.
 - [ ] Ảnh có chú thích → lưu chú thích; ảnh không chú thích → "Chỉ hỗ trợ text".
 - [ ] `#LichSu nội dung` → gắn tag Lịch sử, nội dung không còn hashtag.
@@ -33,7 +33,7 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 - [ ] Chỉ gửi `#LichSu` → "Nội dung trống, không lưu".
 - [ ] Trả lời "✅ Đã lưu — Tag #n"; bấm tag khác → tin nhắn đổi thành tag mới + số mới; bấm tag hiện tại → không đổi.
 - [ ] Gõ 2 hashtag → gắn tag đầu + cảnh báo "Chỉ gắn 1 tag".
-- [ ] Bấm 🗑 Xoá → tin nhắn đổi thành "🗑 Đã xoá #n", web không còn ghi chú.
+- [ ] Bấm 🗑 Xoá → tin nhắn đổi thành "🗑 Đã xoá", web không còn ghi chú.
 - [ ] `/tags`, `/recent` trả kết quả đúng.
 - [ ] Tài khoản Telegram khác gửi text → bot im lặng; `/start` → chỉ trả ID.
 
@@ -49,7 +49,7 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 
 ## Widget Windows
 - [ ] Lần đầu chạy tự mở Cài đặt; URL sai báo lỗi; "Kiểm tra" báo số tag.
-- [ ] Kéo thả từ Chrome, Word, Notepad → "Đã lưu #n"; ghi chú nguồn Widget trên web.
+- [ ] Kéo thả từ Chrome, Word, Notepad → "Đã lưu — Tag #n"; ghi chú nguồn Widget trên web.
 - [ ] Hiện "Đã lưu — Tag #n"; bấm chip tag khác trong 5 giây → chuyển tag, nhãn đổi số.
 - [ ] `Ctrl+V` khi widget đang được chọn → lưu clipboard.
 - [ ] Kéo file (không phải text) → không nhận.

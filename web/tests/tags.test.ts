@@ -158,3 +158,20 @@ describe('deleteTag / listTagsWithCounts', () => {
     ]);
   });
 });
+
+describe('renumberTag với tag rất lớn', () => {
+  it('đánh số lại 40 000 ghi chú không vượt giới hạn tham số của Postgres', async () => {
+    const ls = await createTag(t.db, { name: 'Lịch sử' });
+    await t.pg.query(
+      "INSERT INTO notes (content, source, tag_id, position) SELECT 'n' || g, 'web', $1, 40001 - g FROM generate_series(1, 40000) g",
+      [ls.id],
+    );
+    const { rows } = await t.pg.query<{ id: number }>('SELECT id FROM notes WHERE tag_id = $1 ORDER BY id', [ls.id]);
+    await renumberTag(t.db, ls.id, rows.map((r) => r.id));
+    const check = await t.pg.query<{ ok: boolean }>(
+      'SELECT bool_and(position = rn) AS ok FROM (SELECT position, row_number() OVER (ORDER BY id) AS rn FROM notes WHERE tag_id = $1) x',
+      [ls.id],
+    );
+    expect(check.rows[0].ok).toBe(true);
+  }, 60000);
+});

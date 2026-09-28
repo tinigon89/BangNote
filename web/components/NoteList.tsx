@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { bulkMoveAction, deleteNotesAction, renumberAction, reorderAction } from '@/app/(admin)/actions';
 import { joinForCopy } from '@/lib/export/text';
+import { renumberConfirmText } from '@/lib/notes/filters';
 import type { Note, Tag } from '@/lib/notes/types';
 import { ReorderSession } from '@/lib/reorder';
 import { applyRange } from '@/lib/selection';
@@ -25,8 +26,8 @@ export function NoteList({
   notes: Note[];
   tags: Tag[];
   exportQuery: string;
-  /** Đang lọc đúng 1 tag → cho phép Đánh số lại. */
-  singleTag: Tag | null;
+  /** Đang lọc đúng 1 tag → cho phép Đánh số lại (noteCount = tổng số ghi chú của tag). */
+  singleTag: (Tag & { noteCount?: number }) | null;
   /** Lọc 1 tag + sort theo số → cho phép kéo sắp xếp. */
   reorderable: boolean;
 }) {
@@ -138,7 +139,8 @@ export function NoteList({
   };
 
   const startReorder = (id: number, e: React.PointerEvent) => {
-    if (e.button !== 0) return;
+    // Lần kéo trước còn đang lưu → chờ, tránh danh sách nhảy về thứ tự cũ giữa chừng
+    if (e.button !== 0 || pending) return;
     e.preventDefault();
     const ids = notes.map((n) => n.id);
     reorderRef.current = new ReorderSession(ids, id);
@@ -147,7 +149,7 @@ export function NoteList({
 
   const renumber = () => {
     if (!singleTag) return;
-    if (!confirm(`Đánh số lại ${visibleIds.length} ghi chú trong tag "${singleTag.name}" theo thứ tự đang hiển thị?`)) return;
+    if (!confirm(renumberConfirmText(singleTag.name, visibleIds.length, singleTag.noteCount ?? visibleIds.length))) return;
     const tagId = singleTag.id;
     startTransition(async () => {
       const res = await renumberAction(tagId, visibleIds);

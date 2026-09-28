@@ -3,7 +3,7 @@ import { notes, tags, type Source } from '@/lib/db/schema';
 import type { DB } from '@/lib/db/types';
 import type { DateRange } from './dates';
 import { DomainError } from './errors';
-import { moveNote, nextPosition, pickTagId, resolveTag, tagColumns } from './tags';
+import { lockTag, moveNote, nextPosition, pickTagId, resolveTag, tagColumns } from './tags';
 import type { Note } from './types';
 
 export const MAX_CONTENT = 20000;
@@ -61,6 +61,7 @@ export async function createNote(db: DB, input: CreateNoteInput): Promise<Note> 
   const content = cleanContent(input.content);
   return db.transaction(async (tx) => {
     const tag = await resolveTag(tx, await pickTagId(tx, input.tagIds ?? []));
+    await lockTag(tx, tag.id);
     const position = await nextPosition(tx, tag.id);
     const [row] = await tx
       .insert(notes)

@@ -18,7 +18,10 @@ Gom nhanh các đoạn text từ điện thoại (bot Telegram), trình duyệt 
    cp .env.example .env.local   # điền DATABASE_URL
    npm run db:migrate           # → Đã chạy: 0001_init.sql
    ```
-   > Cập nhật từ bản cũ: chạy lại `npm run db:migrate` (migration `0002` chuyển mỗi ghi chú về 1 tag và đánh số theo tag) ngay trước khi deploy code mới — giữa hai bước này web/bot cũ sẽ lỗi.
+   > **Cập nhật từ bản cũ (nhiều tag → 1 tag có số):**
+   > 1. Neon → **Branches → Create branch** từ `main` để sao lưu: migration `0002` xoá vĩnh viễn bảng `note_tags`, ghi chú nhiều tag chỉ giữ tag đầu tiên.
+   > 2. Chạy lại `npm run db:migrate`, rồi push code để Vercel deploy ngay — giữa hai bước này web/bot cũ sẽ lỗi.
+   > 3. Build lại widget (mục "Cài widget Windows") — bản widget cũ không chuyển được tag với server mới.
 3. **Bot**: chat với @BotFather → `/newbot` → lấy token làm `TELEGRAM_BOT_TOKEN`.
 4. **Vercel**: *Add New Project* → import repo → **Root Directory = `web`** (Node.js ≥ 22) → thêm đủ biến trong `web/.env.example` (tạm để `TELEGRAM_OWNER_ID` trống) → Deploy.
 5. Nhắn `/start` cho bot → bot trả user ID → đặt `TELEGRAM_OWNER_ID` trên Vercel → **Redeploy**.

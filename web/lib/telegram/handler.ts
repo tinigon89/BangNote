@@ -121,6 +121,16 @@ async function handleCallback(db: DB, cq: TgCallbackQuery, config: BotConfig): P
   }
   const allTags = await listTags(db);
   if (!allTags.some((tag) => tag.id === action.tagId)) {
+    // Bàn phím cũ còn nút của tag đã xoá → vẽ lại theo danh sách tag hiện tại
+    try {
+      await callTelegram('editMessageReplyMarkup', {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        reply_markup: buildNoteKeyboard(note.id, allTags, [current.id]),
+      });
+    } catch (err) {
+      if (!(err instanceof Error && err.message.includes('message is not modified'))) throw err;
+    }
     await answer('Tag không còn');
     return;
   }

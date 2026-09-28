@@ -166,6 +166,9 @@ describe('callback', () => {
     await t.pg.query('DELETE FROM tags WHERE id = $1', [ls.id]);
     await handleUpdate(t.db, cb(`t:${note.id}:${ls.id}`), config);
     expect(calls('answerCallbackQuery')[0]).toMatchObject({ text: 'Tag không còn' });
+    const kb = calls('editMessageReplyMarkup')[0].reply_markup.inline_keyboard.flat().map((b: { text: string }) => b.text);
+    expect(kb).not.toContain('Lịch sử');
+    expect(kb).toContain('✓ Chưa phân loại');
     expect((await getNote(t.db, note.id))!.tags[0].name).toBe('Chưa phân loại');
   });
 
