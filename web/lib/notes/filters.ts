@@ -47,6 +47,11 @@ export const SORT_LABELS: Record<Sort, string> = {
   position: 'Theo số #',
 };
 
+/** Lọc đúng 1 tag → xem theo số thứ tự của tag; còn lại → mới nhất. */
+export function defaultSort(tagIds: number[]): Sort {
+  return tagIds.length === 1 ? 'position' : 'newest';
+}
+
 type SearchParams = Record<string, string | string[] | undefined>;
 
 const all = (v: string | string[] | undefined): string[] => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
@@ -64,7 +69,7 @@ export function parseNoteFilters(sp: SearchParams): NoteFilters {
     q: first(sp.q),
     tagIds,
     sources,
-    sort: oneOf(SORTS, first(sp.sort)) ?? 'newest',
+    sort: oneOf(SORTS, first(sp.sort)) ?? defaultSort(tagIds),
     date,
     day: date === 'day' ? first(sp.day) : '',
     month: date === 'month' ? first(sp.month) : '',
@@ -79,7 +84,7 @@ export function filtersToQuery(f: NoteFilters): string {
   if (f.q) params.set('q', f.q);
   for (const id of f.tagIds) params.append('tag', String(id));
   for (const s of f.sources) params.append('source', s);
-  if (f.sort !== 'newest') params.set('sort', f.sort);
+  if (f.sort !== defaultSort(f.tagIds)) params.set('sort', f.sort);
   if (f.date) params.set('date', f.date);
   for (const key of ['day', 'month', 'from', 'to'] as const) if (f[key]) params.set(key, f[key]);
   if (f.limit !== PAGE_SIZE) params.set('limit', String(f.limit));

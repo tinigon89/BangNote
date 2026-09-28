@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_FILTERS, filtersToQuery, parseNoteFilters, toListFilter } from '@/lib/notes/filters';
+import { EMPTY_FILTERS, defaultSort, filtersToQuery, parseNoteFilters, toListFilter } from '@/lib/notes/filters';
 
 describe('parseNoteFilters', () => {
   it('mặc định', () => {
@@ -67,5 +67,21 @@ describe('toListFilter', () => {
       createdRange: { start: new Date('2026-09-27T00:00:00+07:00'), end: new Date('2026-09-28T00:00:00+07:00') },
     });
     expect(toListFilter(EMPTY_FILTERS, now).createdRange).toBeNull();
+  });
+});
+
+describe('sort mặc định', () => {
+  it('lọc đúng 1 tag → Theo số #; còn lại → Mới nhất; sort trên URL luôn thắng', () => {
+    expect(defaultSort([2])).toBe('position');
+    expect(defaultSort([])).toBe('newest');
+    expect(defaultSort([2, 3])).toBe('newest');
+    expect(parseNoteFilters({ tag: '2' }).sort).toBe('position');
+    expect(parseNoteFilters({ tag: '2', sort: 'newest' }).sort).toBe('newest');
+    expect(parseNoteFilters({ sort: 'position' }).sort).toBe('position');
+  });
+
+  it('filtersToQuery bỏ sort khi bằng mặc định của bộ lọc đó, giữ khi khác', () => {
+    expect(filtersToQuery({ ...EMPTY_FILTERS, tagIds: [2], sort: 'position' })).toBe('tag=2');
+    expect(filtersToQuery({ ...EMPTY_FILTERS, tagIds: [2], sort: 'newest' })).toBe('tag=2&sort=newest');
   });
 });

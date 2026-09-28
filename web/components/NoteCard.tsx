@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { deleteNotesAction, setNoteTagsAction, updateNoteAction } from '@/app/(admin)/actions';
+import { deleteNotesAction, moveNoteAction, updateNoteAction } from '@/app/(admin)/actions';
 import { formatRelative } from '@/lib/format';
 import { SOURCE_LABELS } from '@/lib/notes/filters';
 import type { Note, Tag } from '@/lib/notes/types';
@@ -14,6 +14,8 @@ export function NoteCard({
   selected,
   onToggle,
   onGutterPointerDown,
+  reorderable = false,
+  onHandlePointerDown,
 }: {
   note: Note;
   tags: Tag[];
@@ -22,6 +24,9 @@ export function NoteCard({
   onToggle: () => void;
   /** Nhấn vào cột chọn bên trái: click, Shift+click hoặc bắt đầu kéo chọn. */
   onGutterPointerDown: (e: React.PointerEvent) => void;
+  /** Hiện tay nắm ⠿ để kéo sắp xếp (chỉ khi lọc 1 tag + sort theo số). */
+  reorderable?: boolean;
+  onHandlePointerDown?: (e: React.PointerEvent) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -62,10 +67,20 @@ export function NoteCard({
           checked={selected}
           onChange={onToggle}
           className="pointer-events-none"
-          aria-label={`Chọn ghi chú #${note.id}`}
+          aria-label={`Chọn ghi chú ${note.tags[0].name} #${note.position}`}
         />
       </div>
       <div className="flex items-start gap-3">
+        {reorderable && (
+          <span
+            onPointerDown={onHandlePointerDown}
+            className="cursor-grab touch-none select-none px-1 text-lg leading-6 text-slate-400 hover:text-slate-700"
+            title="Kéo để sắp xếp lại"
+            aria-label="Kéo để sắp xếp lại"
+          >
+            ⠿
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           {editing ? (
             <div className="space-y-2">
@@ -105,13 +120,11 @@ export function NoteCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-        <button onClick={() => setPicking(!picking)} className="flex flex-wrap gap-1" title="Đổi tag">
-          {note.tags.map((tag) => (
-            <TagChip key={tag.id} tag={tag} />
-          ))}
+        <button onClick={() => setPicking(!picking)} className="flex flex-wrap gap-1" title="Chuyển tag">
+          <TagChip tag={note.tags[0]} position={note.position} />
         </button>
         <span>
-          #{note.id} · {SOURCE_LABELS[note.source]} ·{' '}
+          {SOURCE_LABELS[note.source]} ·{' '}
           <time dateTime={note.createdAt.toISOString()} suppressHydrationWarning>
             {formatRelative(note.createdAt)}
           </time>
@@ -129,7 +142,7 @@ export function NoteCard({
             Sửa
           </button>
           <button
-            onClick={() => confirm(`Xoá ghi chú #${note.id}?`) && run(() => deleteNotesAction([note.id]))}
+            onClick={() => confirm(`Xoá ghi chú ${note.tags[0].name} #${note.position}?`) && run(() => deleteNotesAction([note.id]))}
             className="hover:text-red-600"
           >
             Xoá
@@ -141,8 +154,12 @@ export function NoteCard({
         <div>
           <TagPicker
             tags={tags}
-            initial={note.tags.filter((t) => !t.isDefault).map((t) => t.id)}
-            onApply={(ids) => run(() => setNoteTagsAction(note.id, ids), () => setPicking(false))}
+            current={note.tags[0].id}
+            onPick={(tagId) =>
+              tagId === note.tags[0].id
+                ? setPicking(false)
+                : run(() => moveNoteAction(note.id, tagId), () => setPicking(false))
+            }
             onCancel={() => setPicking(false)}
           />
         </div>

@@ -137,7 +137,3 @@ export async function moveNotes(db: DB, ids: number[], tagId: number | null): Pr
   });
 }
 
-/** Tương thích tạm (Task 3 xoá). */
-export async function setTagsForNotes(db: DB, ids: number[], tagIds: number[]): Promise<void> {
-  await moveNotes(db, ids, await pickTagId(db, tagIds));
-}

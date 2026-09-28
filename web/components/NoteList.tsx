@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
-import { bulkSetTagsAction, deleteNotesAction } from '@/app/(admin)/actions';
+import { bulkMoveAction, deleteNotesAction, renumberAction, reorderAction } from '@/app/(admin)/actions';
 import { joinForCopy } from '@/lib/export/text';
 import type { Note, Tag } from '@/lib/notes/types';
-import { applyRange } from '@/lib/selection';
+import { applyRange, moveItem } from '@/lib/selection';
 import { NoteCard } from './NoteCard';
 import { TagPicker } from './TagPicker';
 
@@ -13,7 +13,21 @@ type Drag = { anchorId: number; base: Set<number>; select: boolean };
 const EDGE = 48; // px gần mép màn hình thì tự cuộn khi đang kéo chọn
 const DETAIL_KEY = 'bn-export-detail';
 
-export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Tag[]; exportQuery: string }) {
+export function NoteList({
+  notes,
+  tags,
+  exportQuery,
+  singleTag,
+  reorderable,
+}: {
+  notes: Note[];
+  tags: Tag[];
+  exportQuery: string;
+  /** Đang lọc đúng 1 tag → cho phép Đánh số lại. */
+  singleTag: Tag | null;
+  /** Lọc 1 tag + sort theo số → cho phép kéo sắp xếp. */
+  reorderable: boolean;
+}) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string>();
@@ -21,7 +35,14 @@ export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Ta
   const [detailed, setDetailed] = useState(true);
   const [pending, startTransition] = useTransition();
 
-  const visibleIds = notes.map((n) => n.id);
+  // Thứ tự tạm trong lúc kéo sắp xếp; null = theo server.
+  const [order, setOrder] = useState<number[] | null>(null);
+  const reorderRef = useRef<number | null>(null);
+  useEffect(() => setOrder(null), [notes]);
+  const byId = new Map(notes.map((n) => [n.id, n]));
+  const shown = (order ?? notes.map((n) => n.id)).map((id) => byId.get(id)!).filter(Boolean);
+
+  const visibleIds = shown.map((n) => n.id);
   const idsRef = useRef(visibleIds);
   idsRef.current = visibleIds;
   const dragRef = useRef<Drag | null>(null);
@@ -46,8 +67,30 @@ export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Ta
     }
   };
 
+  const finishReorderRef = useRef<() => void>(() => undefined);
+  finishReorderRef.current = () => {
+    if (!singleTag || !order || order.every((id, i) => id === notes[i]?.id)) return;
+    const tagId = singleTag.id;
+    const next = order;
+    startTransition(async () => {
+      const res = await reorderAction(tagId, next);
+      if (res.error) {
+        setError(res.error);
+        setOrder(null);
+      }
+    });
+  };
+
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
+      const moving = reorderRef.current;
+      if (moving !== null) {
+        if (e.clientY < EDGE) window.scrollBy(0, -16);
+        else if (e.clientY > window.innerHeight - EDGE) window.scrollBy(0, 16);
+        const over = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-note-id]');
+        if (over) setOrder((prev) => moveItem(prev ?? idsRef.current, moving, Number(over.dataset.noteId)));
+        return;
+      }
       const drag = dragRef.current;
       if (!drag) return;
       if (e.clientY < EDGE) window.scrollBy(0, -16);
@@ -57,6 +100,10 @@ export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Ta
     };
     const onUp = () => {
       dragRef.current = null;
+      if (reorderRef.current !== null) {
+        reorderRef.current = null;
+        finishReorderRef.current();
+      }
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -81,6 +128,23 @@ export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Ta
     setSelected(applyRange(visibleIds, selected, id, id, select));
   };
 
+  const startReorder = (id: number, e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    reorderRef.current = id;
+    setOrder(notes.map((n) => n.id));
+  };
+
+  const renumber = () => {
+    if (!singleTag) return;
+    if (!confirm(`Đánh số lại ${visibleIds.length} ghi chú trong tag "${singleTag.name}" theo thứ tự đang hiển thị?`)) return;
+    const tagId = singleTag.id;
+    startTransition(async () => {
+      const res = await renumberAction(tagId, visibleIds);
+      setError(res.error);
+    });
+  };
+
   const toggle = (id: number) =>
     setSelected((prev) => {
       const next = new Set(prev);
@@ -100,7 +164,7 @@ export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Ta
     });
 
   const copyChosen = async () => {
-    await navigator.clipboard.writeText(joinForCopy(notes.filter((n) => selected.has(n.id))));
+    await navigator.clipboard.writeText(joinForCopy(shown.filter((n) => selected.has(n.id))));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -114,7 +178,7 @@ export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Ta
   if (!notes.length) return <p className="py-10 text-center text-slate-500">Không có ghi chú nào.</p>;
 
   return (
-    <div className="space-y-3">
+    <div className={`space-y-3 ${pending ? 'opacity-70' : ''}`}>
       <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-slate-100/90 px-4 py-2 text-sm backdrop-blur">
         <label className="flex items-center gap-2">
           <input
@@ -141,6 +205,11 @@ export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Ta
             Xoá
           </button>
         </span>
+        {singleTag && (
+          <button onClick={renumber} className="rounded-lg border bg-white px-3 py-1" disabled={pending} title="Gán lại #1…n theo thứ tự đang hiển thị">
+            Đánh số lại
+          </button>
+        )}
         <span className="ml-auto flex flex-wrap items-center gap-2" title={`Xuất ${exportScope}`}>
           <label className="flex items-center gap-1" title="Bỏ tick: mỗi ghi chú chỉ giữ số #xx và nội dung">
             <input type="checkbox" checked={detailed} onChange={(e) => changeDetailed(e.target.checked)} />
@@ -161,13 +230,13 @@ export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Ta
       {picking && chosen.length > 0 && (
         <TagPicker
           tags={tags}
-          initial={[]}
-          applyLabel={`Chuyển ${chosen.length} ghi chú`}
-          onApply={(tagIds) => run(() => bulkSetTagsAction(chosen, tagIds))}
+          current={null}
+          title={`Chuyển ${chosen.length} ghi chú sang tag:`}
+          onPick={(tagId) => run(() => bulkMoveAction(chosen, tagId))}
           onCancel={() => setPicking(false)}
         />
       )}
-      {notes.map((note) => (
+      {shown.map((note) => (
         <NoteCard
           key={`${note.id}-${note.updatedAt.getTime()}`}
           note={note}
@@ -175,6 +244,8 @@ export function NoteList({ notes, tags, exportQuery }: { notes: Note[]; tags: Ta
           selected={selected.has(note.id)}
           onToggle={() => toggle(note.id)}
           onGutterPointerDown={(e) => startGutter(note.id, e)}
+          reorderable={reorderable}
+          onHandlePointerDown={(e) => startReorder(note.id, e)}
         />
       ))}
     </div>

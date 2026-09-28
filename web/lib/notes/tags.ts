@@ -81,12 +81,6 @@ export async function moveNote(db: DB, noteId: number, tagId: number | null): Pr
   });
 }
 
-/** Tương thích tạm (Task 3 xoá): nhận danh sách tag kiểu cũ, lấy tag thật đầu tiên. */
-export async function setNoteTags(db: DB, noteId: number, tagIds: number[]): Promise<Tag[]> {
-  const { tag } = await moveNote(db, noteId, await pickTagId(db, tagIds));
-  return [tag];
-}
-
 /**
  * Gán 1…k cho `orderedIds` (phải thuộc tag), ghi chú còn lại của tag đánh tiếp k+1… theo số cũ.
  * Không đổi `updated_at` (đánh số không phải là sửa nội dung).

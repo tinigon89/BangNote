@@ -6,7 +6,6 @@ import {
   deleteNotes,
   getNote,
   listNotes,
-  setTagsForNotes,
   updateNoteContent,
 } from '@/lib/notes/notes';
 import { createTag, getDefaultTag } from '@/lib/notes/tags';
@@ -135,7 +134,7 @@ describe('getNote / updateNoteContent / deleteNotes / setTagsForNotes', () => {
     const ls = await createTag(t.db, { name: 'Lịch sử' });
     const a = await createNote(t.db, { content: 'a', source: 'web' });
     const b = await createNote(t.db, { content: 'b', source: 'web' });
-    await setTagsForNotes(t.db, [a.id, b.id], [ls.id]);
+    await moveNotes(t.db, [a.id, b.id], ls.id);
     expect(names((await getNote(t.db, a.id))!)).toEqual(['Lịch sử']);
     expect(names((await getNote(t.db, b.id))!)).toEqual(['Lịch sử']);
   });

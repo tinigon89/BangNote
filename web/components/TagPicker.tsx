@@ -1,60 +1,41 @@
 'use client';
 
-import { useState } from 'react';
 import type { Tag } from '@/lib/notes/types';
 
-/** Chọn nhiều tag thật; không chọn gì = "Chưa phân loại". */
+/** Chọn 1 tag (tag như thư mục); bấm là áp dụng ngay. */
 export function TagPicker({
   tags,
-  initial,
-  onApply,
+  current,
+  onPick,
   onCancel,
-  applyLabel = 'Áp dụng',
+  title = 'Chuyển sang tag:',
 }: {
   tags: Tag[];
-  initial: number[];
-  onApply: (tagIds: number[]) => void;
+  current: number | null;
+  onPick: (tagId: number) => void;
   onCancel: () => void;
-  applyLabel?: string;
+  title?: string;
 }) {
-  const [selected, setSelected] = useState(new Set(initial));
-  const toggle = (id: number) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  const realTags = tags.filter((t) => !t.isDefault);
-
   return (
     <div className="space-y-2 rounded-lg border bg-white p-3 shadow">
+      <p className="text-sm text-slate-600">{title}</p>
       <div className="flex flex-wrap gap-2">
-        {realTags.map((tag) => (
-          <label
+        {tags.map((tag) => (
+          <button
             key={tag.id}
-            className="flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 text-sm"
-            style={selected.has(tag.id) ? { borderColor: tag.color, backgroundColor: `${tag.color}22` } : undefined}
+            type="button"
+            onClick={() => onPick(tag.id)}
+            className="rounded-full border px-3 py-0.5 text-sm"
+            style={tag.id === current ? { borderColor: tag.color, backgroundColor: `${tag.color}33` } : undefined}
           >
-            <input type="checkbox" checked={selected.has(tag.id)} onChange={() => toggle(tag.id)} />
+            {tag.id === current ? '✓ ' : ''}
             {tag.name}
-          </label>
+          </button>
         ))}
-        {!realTags.length && <span className="text-sm text-slate-500">Chưa có tag nào — tạo ở trang Tag.</span>}
       </div>
-      <p className="text-xs text-slate-500">Không chọn tag nào → ghi chú về &quot;Chưa phân loại&quot;.</p>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => onApply([...selected])}
-          className="rounded-lg bg-slate-900 px-3 py-1 text-sm text-white hover:bg-slate-700"
-        >
-          {applyLabel}
-        </button>
-        <button type="button" onClick={onCancel} className="rounded-lg border px-3 py-1 text-sm">
-          Huỷ
-        </button>
-      </div>
+      <button type="button" onClick={onCancel} className="rounded-lg border px-3 py-1 text-sm">
+        Huỷ
+      </button>
     </div>
   );
 }

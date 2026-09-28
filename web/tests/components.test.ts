@@ -25,11 +25,29 @@ const note: Note = {
 };
 
 describe('render phía server của trang ghi chú', () => {
+  it('lọc 1 tag + sort theo số → có nút Đánh số lại và tay nắm kéo', () => {
+    const html = renderToString(
+      createElement(NoteList, { notes: [note], tags: [DEF, LS], exportQuery: 'tag=2', singleTag: LS, reorderable: true }),
+    );
+    expect(html).toContain('Đánh số lại');
+    expect(html).toContain('⠿');
+  });
+
+  it('thêm nhanh: chọn 1 tag bằng radio, mặc định Chưa phân loại', () => {
+    const quick = renderToString(createElement(QuickAdd, { tags: [DEF, LS] }));
+    expect(quick.match(/type="radio"/g)).toHaveLength(2);
+    expect(quick).toMatch(/checked=""[^>]*value="1"|value="1"[^>]*checked=""/);
+  });
+
   it('danh sách hiện nội dung, tag, nguồn, link', () => {
-    const html = renderToString(createElement(NoteList, { notes: [note], tags: [DEF, LS], exportQuery: 'tag=2' })).replaceAll('<!-- -->', '');
+    const html = renderToString(createElement(NoteList, { notes: [note], tags: [DEF, LS], exportQuery: 'tag=2', singleTag: null, reorderable: false })).replaceAll('<!-- -->', '');
     expect(html).toContain('Trận Bạch Đằng');
     expect(html).toContain('Lịch sử');
-    expect(html).toContain('#7 · Extension');
+    expect(html).toContain('Lịch sử #3');
+    expect(html).toContain('Extension');
+    expect(html).not.toContain('#7');
+    expect(html).not.toContain('Đánh số lại');
+    expect(html).not.toContain('⠿');
     expect(html).toContain('href="https://vi.wikipedia.org/x"');
     expect(html).toContain('5 phút trước');
     expect(html).toContain('href="/api/export?format=txt&amp;tag=2"');
@@ -39,7 +57,7 @@ describe('render phía server của trang ghi chú', () => {
   });
 
   it('danh sách rỗng', () => {
-    expect(renderToString(createElement(NoteList, { notes: [], tags: [DEF], exportQuery: '' }))).toContain('Không có ghi chú nào');
+    expect(renderToString(createElement(NoteList, { notes: [], tags: [DEF], exportQuery: '', singleTag: null, reorderable: false }))).toContain('Không có ghi chú nào');
   });
 
   it('bộ lọc giữ trạng thái đã chọn; thêm nhanh chỉ hiện tag thật', () => {
@@ -52,7 +70,6 @@ describe('render phía server của trang ghi chú', () => {
     expect(filters).toMatch(/value="2"[^>]*checked|checked[^>]*value="2"/);
     const quick = renderToString(createElement(QuickAdd, { tags: [DEF, LS] }));
     expect(quick).toContain('Lịch sử');
-    expect(quick).not.toContain('Chưa phân loại');
   });
 });
 
