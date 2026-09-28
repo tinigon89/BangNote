@@ -4,7 +4,7 @@ import type { DB } from '@/lib/db/types';
 import type { DateRange } from './dates';
 import { DomainError } from './errors';
 import { lastAnchor, shouldStartPost, slotAfter } from './posts';
-import { lockTag, moveNote, pickTagId, resolveTag, tagColumns } from './tags';
+import { lockTag, pickTagId, resolveTag, tagColumns } from './tags';
 import type { Note } from './types';
 
 export const MAX_CONTENT = 20000;
@@ -134,12 +134,5 @@ export async function deleteNotes(db: DB, ids: number[]): Promise<number> {
   if (!ids.length) return 0;
   const rows = await db.delete(notes).where(inArray(notes.id, ids)).returning({ id: notes.id });
   return rows.length;
-}
-
-/** Chuyển nhiều ghi chú sang một tag theo đúng thứ tự `ids` (ghi chú đã ở tag đó giữ số). */
-export async function moveNotes(db: DB, ids: number[], tagId: number | null): Promise<void> {
-  await db.transaction(async (tx) => {
-    for (const id of ids) await moveNote(tx, id, tagId);
-  });
 }
 

@@ -6,12 +6,11 @@ import {
   getDefaultTag,
   listTags,
   listTagsWithCounts,
-  moveNote,
   nextPosition,
   pickTagId,
-  renumberTag,
   updateTag,
 } from '@/lib/notes/tags';
+import { moveNote, renumberTag } from '@/lib/notes/posts';
 import { insertNote, noteTag } from './helpers/fixtures';
 import { createTestDb, type TestDb } from './helpers/test-db';
 
@@ -97,39 +96,6 @@ describe('nextPosition / moveNote', () => {
   });
 });
 
-describe('renumberTag', () => {
-  it('gán 1…n theo thứ tự truyền vào, sửa được số trùng', async () => {
-    const ls = await createTag(t.db, { name: 'Lịch sử' });
-    const a = await insertNote(t.db, 'a', ls.id);
-    const b = await insertNote(t.db, 'b', ls.id);
-    const c = await insertNote(t.db, 'c', ls.id);
-    await t.pg.query('UPDATE notes SET position = 1 WHERE tag_id = $1', [ls.id]);
-    await renumberTag(t.db, ls.id, [c, a, b]);
-    expect([await noteTag(t.db, c), await noteTag(t.db, a), await noteTag(t.db, b)].map((x) => x.position)).toEqual([1, 2, 3]);
-  });
-
-  it('ghi chú của tag không có trong danh sách → đánh tiếp theo số cũ', async () => {
-    const ls = await createTag(t.db, { name: 'Lịch sử' });
-    const a = await insertNote(t.db, 'a', ls.id); // 1
-    const b = await insertNote(t.db, 'b', ls.id); // 2
-    const c = await insertNote(t.db, 'c', ls.id); // 3
-    const d = await insertNote(t.db, 'd', ls.id); // 4
-    await renumberTag(t.db, ls.id, [d, b]);
-    expect((await noteTag(t.db, d)).position).toBe(1);
-    expect((await noteTag(t.db, b)).position).toBe(2);
-    expect((await noteTag(t.db, a)).position).toBe(3);
-    expect((await noteTag(t.db, c)).position).toBe(4);
-  });
-
-  it('id không thuộc tag → invalid, không đổi gì', async () => {
-    const ls = await createTag(t.db, { name: 'Lịch sử' });
-    const a = await insertNote(t.db, 'a', ls.id);
-    const other = await insertNote(t.db, 'o');
-    await expect(renumberTag(t.db, ls.id, [other, a])).rejects.toMatchObject({ code: 'invalid' });
-    expect((await noteTag(t.db, a)).position).toBe(1);
-  });
-});
-
 describe('deleteTag / listTagsWithCounts', () => {
   it('không xoá được tag mặc định; not_found', async () => {
     const def = await getDefaultTag(t.db);
@@ -166,8 +132,7 @@ describe('renumberTag với tag rất lớn', () => {
       "INSERT INTO notes (content, source, tag_id, position) SELECT 'n' || g, 'web', $1, 40001 - g FROM generate_series(1, 40000) g",
       [ls.id],
     );
-    const { rows } = await t.pg.query<{ id: number }>('SELECT id FROM notes WHERE tag_id = $1 ORDER BY id', [ls.id]);
-    await renumberTag(t.db, ls.id, rows.map((r) => r.id));
+    await renumberTag(t.db, ls.id, 'oldest');
     const check = await t.pg.query<{ ok: boolean }>(
       'SELECT bool_and(position = rn) AS ok FROM (SELECT position, row_number() OVER (ORDER BY id) AS rn FROM notes WHERE tag_id = $1) x',
       [ls.id],

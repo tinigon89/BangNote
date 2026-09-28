@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
-import { bulkMoveAction, deleteNotesAction, renumberAction, reorderAction } from '@/app/(admin)/actions';
+import { bulkMoveAction, deleteNotesAction, dropNoteAction, renumberAction } from '@/app/(admin)/actions';
 import { joinForCopy } from '@/lib/export/text';
 import { renumberConfirmText } from '@/lib/notes/filters';
 import type { Note, Tag } from '@/lib/notes/types';
@@ -79,7 +79,7 @@ export function NoteList({
     if (!singleTag || !next) return;
     const tagId = singleTag.id;
     startTransition(async () => {
-      const res = await reorderAction(tagId, next);
+      const res = await dropNoteAction(next[0], next[1] ?? next[0], false);
       if (res.error) {
         setError(res.error);
         setOrder(null);
@@ -152,7 +152,7 @@ export function NoteList({
     if (!confirm(renumberConfirmText(singleTag.name, visibleIds.length, singleTag.noteCount ?? visibleIds.length))) return;
     const tagId = singleTag.id;
     startTransition(async () => {
-      const res = await renumberAction(tagId, visibleIds);
+      const res = await renumberAction(tagId, 'position');
       setError(res.error);
     });
   };

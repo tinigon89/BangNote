@@ -1,7 +1,8 @@
 import type { DB } from '@/lib/db/types';
 import { DomainError } from '@/lib/notes/errors';
 import { createNote, deleteNotes, getNote, listNotes } from '@/lib/notes/notes';
-import { listTags, listTagsWithCounts, moveNote } from '@/lib/notes/tags';
+import { moveNote } from '@/lib/notes/posts';
+import { listTags, listTagsWithCounts } from '@/lib/notes/tags';
 import { callTelegram } from './api';
 import { extractHashtags } from './hashtags';
 import { buildNoteKeyboard, parseCallbackData, savedLabel } from './keyboard';

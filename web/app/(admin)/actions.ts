@@ -5,8 +5,8 @@ import { z } from 'zod';
 import { requireSession } from '@/lib/auth/require';
 import { getDb } from '@/lib/db/client';
 import { DomainError } from '@/lib/notes/errors';
-import { createNote, deleteNotes, moveNotes, updateNoteContent } from '@/lib/notes/notes';
-import { moveNote, renumberTag } from '@/lib/notes/tags';
+import { SORTS, createNote, deleteNotes, updateNoteContent, type Sort } from '@/lib/notes/notes';
+import { dropNote, mergeIntoPrevious, moveNote, moveNotes, renumberTag, splitPost } from '@/lib/notes/posts';
 
 export type ActionState = { ok?: boolean; error?: string };
 
@@ -50,14 +50,22 @@ export async function bulkMoveAction(noteIds: number[], toTagId: number | null):
   return run(() => moveNotes(getDb(), ids.parse(noteIds), tagId.parse(toTagId)));
 }
 
-/** Nút "Đánh số lại": 1…n theo thứ tự đang hiển thị. */
-export async function renumberAction(inTagId: number, orderedIds: number[]): Promise<ActionState> {
-  return run(() => renumberTag(getDb(), id.parse(inTagId), z.array(id).max(5000).parse(orderedIds)));
+/** Nút "Đánh số lại": toàn tag theo cách sắp xếp đang chọn. */
+export async function renumberAction(inTagId: number, sort: Sort): Promise<ActionState> {
+  return run(() => renumberTag(getDb(), id.parse(inTagId), z.enum(SORTS).parse(sort)));
 }
 
-/** Kéo sắp xếp: thứ tự mới của các thẻ đang hiện. */
-export async function reorderAction(inTagId: number, orderedIds: number[]): Promise<ActionState> {
-  return renumberAction(inTagId, orderedIds);
+export async function splitPostAction(noteId: number): Promise<ActionState> {
+  return run(() => splitPost(getDb(), id.parse(noteId)));
+}
+
+export async function mergePostAction(noteId: number): Promise<ActionState> {
+  return run(() => mergeIntoPrevious(getDb(), id.parse(noteId)));
+}
+
+/** Kéo thả bài/comment: đặt `movingId` trước/sau `targetId`. */
+export async function dropNoteAction(movingId: number, targetId: number, after: boolean): Promise<ActionState> {
+  return run(() => dropNote(getDb(), id.parse(movingId), id.parse(targetId), z.boolean().parse(after)));
 }
 
 export async function deleteNotesAction(noteIds: number[]): Promise<ActionState> {

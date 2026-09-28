@@ -74,49 +74,6 @@ export async function nextPosition(db: DB, tagId: number): Promise<number> {
   return (row?.max ?? 0) + 1;
 }
 
-/** Nơi DUY NHẤT đổi tag của ghi chú. Sang tag khác → nối cuối tag mới; cùng tag → giữ nguyên. */
-export async function moveNote(db: DB, noteId: number, tagId: number | null): Promise<Placement> {
-  return db.transaction(async (tx) => {
-    const [note] = await tx
-      .select({ tagId: notes.tagId, position: notes.position })
-      .from(notes)
-      .where(eq(notes.id, noteId));
-    if (!note) throw new DomainError('not_found', 'Không tìm thấy ghi chú');
-    const tag = await resolveTag(tx, tagId);
-    if (tag.id === note.tagId) return { tag, position: note.position, sub: 0 };
-    await lockTag(tx, tag.id);
-    const position = await nextPosition(tx, tag.id);
-    await tx.update(notes).set({ tagId: tag.id, position, updatedAt: new Date() }).where(eq(notes.id, noteId));
-    return { tag, position, sub: 0 };
-  });
-}
-
-/**
- * Gán 1…k cho `orderedIds` (phải thuộc tag), ghi chú còn lại của tag đánh tiếp k+1… theo số cũ.
- * Không đổi `updated_at` (đánh số không phải là sửa nội dung).
- */
-export async function renumberTag(db: DB, tagId: number, orderedIds: number[]): Promise<void> {
-  await db.transaction(async (tx) => {
-    const rows = await tx
-      .select({ id: notes.id })
-      .from(notes)
-      .where(eq(notes.tagId, tagId))
-      .orderBy(asc(notes.position), asc(notes.id));
-    const inTag = new Set(rows.map((r) => r.id));
-    const chosen = [...new Set(orderedIds)];
-    if (chosen.some((id) => !inTag.has(id))) throw new DomainError('invalid', 'Có ghi chú không thuộc tag này');
-    const chosenSet = new Set(chosen);
-    const order = [...chosen, ...rows.map((r) => r.id).filter((id) => !chosenSet.has(id))];
-    if (!order.length) return;
-    // 2 tham số mảng thay vì 2 tham số/ghi chú → không vướng giới hạn 65535 tham số của Postgres
-    const positions = order.map((_, i) => i + 1);
-    await tx.execute(sql`
-      UPDATE notes n SET position = v.pos
-      FROM unnest(${sql.param(order)}::int[], ${sql.param(positions)}::int[]) AS v(id, pos)
-      WHERE n.id = v.id`);
-  });
-}
-
 function cleanName(name: string): string {
   const trimmed = name.trim().replace(/\s+/g, ' ');
   if (!trimmed) throw new DomainError('invalid', 'Tên tag không được trống');
@@ -171,8 +128,8 @@ export async function deleteTag(db: DB, id: number): Promise<void> {
     await lockTag(tx, def.id);
     const start = await nextPosition(tx, def.id);
     await tx.execute(sql`
-      UPDATE notes n SET tag_id = ${def.id}::int, position = ${start}::int - 1 + r.rn::int
-      FROM (SELECT id, row_number() OVER (ORDER BY position, id) AS rn FROM notes WHERE tag_id = ${id}::int) r
+      UPDATE notes n SET tag_id = ${def.id}::int, position = ${start}::int - 1 + r.rk::int
+      FROM (SELECT id, dense_rank() OVER (ORDER BY position) AS rk FROM notes WHERE tag_id = ${id}::int) r
       WHERE r.id = n.id`);
     await tx.delete(tags).where(eq(tags.id, id));
   });

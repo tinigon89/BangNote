@@ -2,12 +2,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   MAX_LIST_LIMIT,
   createNote,
-  moveNotes,
   deleteNotes,
   getNote,
   listNotes,
   updateNoteContent,
 } from '@/lib/notes/notes';
+import { moveNotes } from '@/lib/notes/posts';
 import { createTag, getDefaultTag } from '@/lib/notes/tags';
 import { createTestDb, type TestDb } from './helpers/test-db';
 
