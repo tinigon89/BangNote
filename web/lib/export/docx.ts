@@ -1,25 +1,25 @@
-import { BorderStyle, Document, Packer, Paragraph, TextRun } from 'docx';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
 import type { Note } from '@/lib/notes/types';
-import { noteHeader } from './text';
+import { FULL_EXPORT, noteHeader, type ExportOptions } from './text';
 
-function noteParagraphs(note: Note, isLast: boolean, detailed: boolean): Paragraph[] {
+function noteParagraphs(note: Note, opts: ExportOptions): Paragraph[] {
+  const header = noteHeader(note, opts);
   const lines = note.content.split(/\r?\n/);
   return [
-    new Paragraph({
-      spacing: { before: 240, after: 80 },
-      children: [new TextRun({ text: noteHeader(note, detailed), size: 18, color: '64748B' })],
-    }),
+    ...(header
+      ? [new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: header, size: 18, color: '64748B' })] })]
+      : []),
+    // after: 240 ≈ một dòng trống giữa các ghi chú
     new Paragraph({
       spacing: { after: 240 },
-      border: isLast ? undefined : { bottom: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1', space: 8 } },
       children: lines.map((line, i) => new TextRun({ text: line, break: i > 0 ? 1 : 0 })),
     }),
   ];
 }
 
-export async function buildNotesDocx(notes: Note[], detailed = true): Promise<Buffer> {
+export async function buildNotesDocx(notes: Note[], opts: ExportOptions = FULL_EXPORT): Promise<Buffer> {
   const children = notes.length
-    ? notes.flatMap((note, i) => noteParagraphs(note, i === notes.length - 1, detailed))
+    ? notes.flatMap((note) => noteParagraphs(note, opts))
     : [new Paragraph({ children: [new TextRun('Không có ghi chú nào.')] })];
   const doc = new Document({
     creator: 'BangNote',

@@ -69,13 +69,13 @@ describe('GET /api/export', () => {
     expect(body).not.toContain('cũ');
   });
 
-  it('detail=0 → chỉ giữ số #, bỏ tag/ngày giờ/link', async () => {
+  it('num=0 / detail=0 bật tắt độc lập', async () => {
     const ls = await createTag(t.db, { name: 'Lịch sử' });
-    const n = await createNote(t.db, { content: 'Bạch Đằng', source: 'extension', tagIds: [ls.id], sourceUrl: 'https://a.b/x' });
-    const full = await (await GET(req('format=txt'))).text();
-    expect(full.split('\n')[0]).toContain('Lịch sử');
-    const clean = await (await GET(req('format=txt&detail=0'))).text();
-    expect(clean).toBe(`#${n.id}\nBạch Đằng\n`);
+    await createNote(t.db, { content: 'Bạch Đằng', source: 'extension', tagIds: [ls.id], sourceUrl: 'https://a.b/x' });
+    expect((await (await GET(req('format=txt'))).text()).split('\n')[0]).toMatch(/^#1 · Lịch sử · .* · https:\/\/a\.b\/x$/);
+    expect(await (await GET(req('format=txt&detail=0'))).text()).toBe('#1\nBạch Đằng\n');
+    expect((await (await GET(req('format=txt&num=0'))).text()).split('\n')[0]).toMatch(/^Lịch sử · /);
+    expect(await (await GET(req('format=txt&num=0&detail=0'))).text()).toBe('Bạch Đằng\n');
   });
 
   it('DOCX: đúng content-type, là file Word chứa nội dung', async () => {

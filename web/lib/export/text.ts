@@ -1,19 +1,32 @@
 import { vnDateString, vnDateTimeString } from '@/lib/notes/dates';
 import type { Note } from '@/lib/notes/types';
 
-export const SEPARATOR = '-'.repeat(40);
-
-/** `detailed = false` → chỉ còn số `#id` (bỏ tag, ngày giờ, link nguồn). */
-export function noteHeader(note: Note, detailed = true): string {
-  if (!detailed) return `#${note.id}`;
-  return [`#${note.id}`, note.tags.map((t) => t.name).join(', '), vnDateTimeString(note.createdAt), note.sourceUrl]
-    .filter(Boolean)
-    .join(' · ');
+export interface ExportOptions {
+  /** Kèm `#position` (số trong tag). */
+  number: boolean;
+  /** Kèm tag, ngày giờ, link nguồn. */
+  detail: boolean;
 }
 
-export function formatNotesTxt(notes: Note[], detailed = true): string {
+export const FULL_EXPORT: ExportOptions = { number: true, detail: true };
+
+/** Dòng đầu của ghi chú khi xuất; chuỗi rỗng nếu không bật phần nào. */
+export function noteHeader(note: Note, opts: ExportOptions = FULL_EXPORT): string {
+  const parts = [
+    opts.number ? `#${note.position}` : '',
+    ...(opts.detail ? [note.tags.map((t) => t.name).join(', '), vnDateTimeString(note.createdAt), note.sourceUrl ?? ''] : []),
+  ];
+  return parts.filter(Boolean).join(' · ');
+}
+
+/** Mỗi ghi chú: [dòng đầu] + nội dung; các ghi chú cách nhau đúng một dòng trống. */
+export function formatNotesTxt(notes: Note[], opts: ExportOptions = FULL_EXPORT): string {
   if (!notes.length) return '';
-  return notes.map((n) => `${noteHeader(n, detailed)}\n${n.content}\n`).join(`\n${SEPARATOR}\n\n`);
+  const blocks = notes.map((n) => {
+    const header = noteHeader(n, opts);
+    return header ? `${header}\n${n.content}` : n.content;
+  });
+  return `${blocks.join('\n\n')}\n`;
 }
 
 /** Nội dung dùng cho nút Copy nhiều ghi chú — chỉ nội dung, cách nhau một dòng trống. */

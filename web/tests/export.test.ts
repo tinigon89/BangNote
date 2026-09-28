@@ -20,33 +20,18 @@ const n1: Note = {
 const n2: Note = { ...n1, id: 13, content: 'Hải Thượng Lãn Ông', sourceUrl: null, sourceTitle: null, tags: [YH] };
 
 describe('text export', () => {
-  it('dòng đầu: id · tag · ngày giờ VN · link', () => {
-    expect(noteHeader(n1)).toBe('#12 · Lịch sử, Y học · 27/09/2026 14:05 · https://vi.wikipedia.org/x');
-    expect(noteHeader(n2)).toBe('#13 · Y học · 27/09/2026 14:05');
+  it('dòng đầu theo tuỳ chọn: số # là số trong tag, không có số id', () => {
+    expect(noteHeader(n1)).toBe('#3 · Lịch sử, Y học · 27/09/2026 14:05 · https://vi.wikipedia.org/x');
+    expect(noteHeader(n1, { number: true, detail: false })).toBe('#3');
+    expect(noteHeader(n1, { number: false, detail: true })).toBe('Lịch sử, Y học · 27/09/2026 14:05 · https://vi.wikipedia.org/x');
+    expect(noteHeader(n1, { number: false, detail: false })).toBe('');
   });
 
-  it('TXT: từng ghi chú có dòng đầu, nội dung giữ xuống dòng, ngăn bằng đường kẻ', () => {
-    expect(formatNotesTxt([n1, n2])).toBe(
-      [
-        '#12 · Lịch sử, Y học · 27/09/2026 14:05 · https://vi.wikipedia.org/x',
-        'Trận Bạch Đằng',
-        'năm 938',
-        '',
-        '----------------------------------------',
-        '',
-        '#13 · Y học · 27/09/2026 14:05',
-        'Hải Thượng Lãn Ông',
-        '',
-      ].join('\n'),
-    );
+  it('TXT: ghi chú cách nhau đúng một dòng trống, không còn đường kẻ', () => {
+    expect(formatNotesTxt([n1, n2], { number: true, detail: false })).toBe('#3\nTrận Bạch Đằng\nnăm 938\n\n#3\nHải Thượng Lãn Ông\n');
+    expect(formatNotesTxt([n1, n2], { number: false, detail: false })).toBe('Trận Bạch Đằng\nnăm 938\n\nHải Thượng Lãn Ông\n');
+    expect(formatNotesTxt([n1, n2])).not.toContain('---');
     expect(formatNotesTxt([])).toBe('');
-  });
-
-  it('bỏ thông tin → dòng đầu chỉ còn số #', () => {
-    expect(noteHeader(n1, false)).toBe('#12');
-    expect(formatNotesTxt([n1, n2], false)).toBe(
-      ['#12', 'Trận Bạch Đằng', 'năm 938', '', '----------------------------------------', '', '#13', 'Hải Thượng Lãn Ông', ''].join('\n'),
-    );
   });
 
   it('copy: chỉ nội dung, cách nhau một dòng trống', () => {
@@ -63,16 +48,20 @@ describe('docx export', () => {
     const buf = await buildNotesDocx([n1, n2]);
     expect(buf.subarray(0, 2).toString()).toBe('PK');
     const xml = await (await JSZip.loadAsync(buf)).file('word/document.xml')!.async('string');
-    for (const text of ['#12 · Lịch sử, Y học · 27/09/2026 14:05', 'Trận Bạch Đằng', 'năm 938', 'Hải Thượng Lãn Ông']) {
+    for (const text of ['#3 · Lịch sử, Y học · 27/09/2026 14:05', 'Trận Bạch Đằng', 'năm 938', 'Hải Thượng Lãn Ông']) {
       expect(xml).toContain(text);
     }
   });
 
-  it('bỏ thông tin → Word không chứa tag, ngày, link nhưng vẫn có số #', async () => {
-    const xml = await (await JSZip.loadAsync(await buildNotesDocx([n1], false))).file('word/document.xml')!.async('string');
-    expect(xml).toContain('>#12<');
-    for (const text of ['Lịch sử', '27/09/2026', 'wikipedia']) expect(xml).not.toContain(text);
-    expect(xml).toContain('Trận Bạch Đằng');
+  it('Word: theo tuỳ chọn, không kẻ viền giữa ghi chú', async () => {
+    const xmlOf = async (buf: Buffer) => (await JSZip.loadAsync(buf)).file('word/document.xml')!.async('string');
+    const full = await xmlOf(await buildNotesDocx([n1, n2]));
+    expect(full).toContain('#3 · Lịch sử, Y học');
+    expect(full).not.toContain('w:pBdr');
+    const bare = await xmlOf(await buildNotesDocx([n1], { number: false, detail: false }));
+    expect(bare).not.toContain('#3');
+    expect(bare).not.toContain('Lịch sử');
+    expect(bare).toContain('Trận Bạch Đằng');
   });
 
   it('không có ghi chú → vẫn là file hợp lệ', async () => {
