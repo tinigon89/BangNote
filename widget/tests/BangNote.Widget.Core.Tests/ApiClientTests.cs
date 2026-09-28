@@ -133,4 +133,15 @@ public class ApiClientTests
         Assert.Equal(HttpMethod.Post, request.Method);
         Assert.Equal("https://x.test/api/notes/7/new-post", request.RequestUri!.ToString());
     }
+
+    [Fact]
+    public async Task CreateNote_WithNewPost_SendsFlag()
+    {
+        var (client, handler) = Create((_, _) => Task.FromResult(Json(HttpStatusCode.Created,
+            """{"id":8,"content":"p","source":"widget","position":2,"sub":0,"tags":[]}""")));
+
+        await client.CreateNoteAsync("p", newPost: true);
+
+        Assert.Equal("""{"content":"p","source":"widget","newPost":true}""", handler.Requests.Single().Body);
+    }
 }

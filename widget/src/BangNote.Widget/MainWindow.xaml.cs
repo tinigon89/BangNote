@@ -24,6 +24,8 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _flushTimer = new() { Interval = TimeSpan.FromSeconds(60) };
     private Brush _restingBrush = IdleBrush;
     private NoteDto? _lastNote;
+    private bool _nextIsPost;
+    private static readonly Brush NewPostOnBrush = ParseBrush("#E6D97706");
 
     public MainWindow(App app)
     {
@@ -115,10 +117,33 @@ public partial class MainWindow : Window
 
     // ---------- lưu ----------
 
+    private void OnNewPostToggle(object sender, RoutedEventArgs e)
+    {
+        _nextIsPost = !_nextIsPost;
+        RenderNewPostToggle();
+    }
+
+    private void RenderNewPostToggle()
+    {
+        NewPostToggle.Content = _nextIsPost ? "📌 Bài mới" : "📌";
+        NewPostToggle.Opacity = _nextIsPost ? 1 : 0.45;
+        NewPostToggle.Background = _nextIsPost ? NewPostOnBrush : Brushes.Transparent;
+    }
+
     private async Task SaveAsync(string text)
     {
+        // Nút 📌 chỉ áp dụng cho một lần lưu; bị từ chối (vd nội dung trống) thì giữ nguyên để thử lại
+        var asPost = _nextIsPost;
+        _nextIsPost = false;
+        RenderNewPostToggle();
         SetStatus("Đang lưu…", IdleBrush);
-        switch (await _app.SaveService.SaveAsync(text))
+        var result = await _app.SaveService.SaveAsync(text, asPost);
+        if (result is SaveResult.Rejected && asPost)
+        {
+            _nextIsPost = true;
+            RenderNewPostToggle();
+        }
+        switch (result)
         {
             case SaveResult.Saved saved:
                 await ShowSavedAsync(saved.Note);

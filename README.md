@@ -47,6 +47,7 @@ Chép `publish/BangNote.Widget.exe` vào nơi cố định (vd: `C:\Tools\BangNo
 - Kéo thả chữ đã chọn vào ô nổi, hoặc bấm vào ô rồi `Ctrl+V`.
 - **Alt+Insert** (ở bất kỳ app nào) để ẩn/hiện widget. Laptop có thể cần bấm kèm `Fn`. Nếu app khác đã chiếm tổ hợp này, widget báo ở khay và bạn dùng icon khay thay thế.
 - Sau khi lưu, widget hiện "Đã lưu — Tag #n"; bấm nút tag khác trong 5 giây để chuyển tag.
+- Nút **📌** góc trên phải: bật trước khi thả → lần lưu kế tiếp thành **bài mới** (tự tắt sau khi lưu). Sau khi lưu một comment cũng có chip **📌 Bài mới** trong 5 giây.
 - Mất mạng / sai key: ghi chú được giữ ở `%AppData%\BangNote\queue.json` và tự gửi lại mỗi phút.
 - Không kéo được từ app chạy bằng quyền Administrator (Windows chặn).
 

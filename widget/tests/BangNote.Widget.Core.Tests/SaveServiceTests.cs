@@ -7,10 +7,13 @@ public sealed class SaveServiceTests : IDisposable
         public Queue<Func<string, NoteDto>> Behaviors { get; } = new();
         public List<string> Created { get; } = [];
 
-        public async Task<NoteDto> CreateNoteAsync(string content, CancellationToken ct = default)
+        public List<bool> NewPosts { get; } = [];
+
+        public async Task<NoteDto> CreateNoteAsync(string content, bool newPost = false, CancellationToken ct = default)
         {
             await Task.Yield();
             Created.Add(content);
+            NewPosts.Add(newPost);
             return Behaviors.Count > 0 ? Behaviors.Dequeue()(content) : new NoteDto(Created.Count, content, []);
         }
 
@@ -170,5 +173,25 @@ public sealed class SaveServiceTests : IDisposable
         _service.Api = null;
         Assert.Equal(new FlushResult(0, 0, true), await _service.FlushAsync());
         Assert.Equal(1, _queue.Count);
+    }
+
+    [Fact]
+    public async Task Save_NewPost_IsSentToApi()
+    {
+        await _service.SaveAsync("bài", newPost: true);
+        Assert.Equal(new[] { true }, _api.NewPosts);
+    }
+
+    [Fact]
+    public async Task Offline_NewPost_IsKeptInQueue_AndSentOnFlush()
+    {
+        _api.Behaviors.Enqueue(Offline);
+        Assert.IsType<SaveResult.Queued>(await _service.SaveAsync("bài", newPost: true));
+        Assert.True(_queue.Peek()!.NewPost);
+
+        await _service.FlushAsync();
+
+        Assert.Equal(new[] { true, true }, _api.NewPosts);
+        Assert.Equal(0, _queue.Count);
     }
 }

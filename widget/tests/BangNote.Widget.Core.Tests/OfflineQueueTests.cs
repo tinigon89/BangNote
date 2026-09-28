@@ -62,4 +62,16 @@ public sealed class OfflineQueueTests : IDisposable
         new OfflineQueue(QueuePath).Enqueue(Note("x"));
         Assert.False(File.Exists(QueuePath + ".tmp"));
     }
+
+    [Fact]
+    public void OldQueueFileWithoutNewPost_LoadsAsComment()
+    {
+        Directory.CreateDirectory(_dir.Path);
+        File.WriteAllText(QueuePath, """[{"content":"a","queuedAt":"2026-01-01T00:00:00+00:00"}]""");
+
+        var item = new OfflineQueue(QueuePath).Peek()!;
+
+        Assert.Equal("a", item.Content);
+        Assert.False(item.NewPost);
+    }
 }

@@ -7,7 +7,8 @@ public sealed record NoteDto(int Id, string Content, IReadOnlyList<TagDto> Tags,
 
 public sealed record TagPlacement(IReadOnlyList<TagDto> Tags, int Position, int Sub = 0);
 
-public sealed record QueuedNote(string Content, DateTimeOffset QueuedAt);
+/// <summary>NewPost: lưu thành bài mới khi gửi (file hàng đợi cũ không có trường này → false).</summary>
+public sealed record QueuedNote(string Content, DateTimeOffset QueuedAt, bool NewPost = false);
 
 public sealed class WidgetSettings
 {

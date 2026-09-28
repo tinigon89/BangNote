@@ -66,3 +66,4 @@ Chạy sau mỗi lần deploy lớn. Đánh dấu từng mục.
 - [ ] Khởi động cùng Windows bật/tắt được; Thoát xoá icon khay.
 - [ ] `queue.json` hỏng → app vẫn chạy, có `queue.json.bad`.
 - [ ] Sau khi lưu comment hiện "Đã lưu — Tag #n.k" + nút 📌 Bài mới; bấm → "Đã lưu — Tag #m".
+- [ ] Bật nút 📌 góc trên → thả chữ → lưu thành bài mới "Tag #m", nút tự tắt; mất mạng lúc đó → khi gửi lại vẫn là bài mới.

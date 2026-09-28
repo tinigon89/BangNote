@@ -23,8 +23,12 @@ public sealed class ApiClient : IApiClient
     public Task<IReadOnlyList<TagDto>> GetTagsAsync(CancellationToken ct = default) =>
         SendAsync<IReadOnlyList<TagDto>>(HttpMethod.Get, "/api/tags", null, ct);
 
-    public Task<NoteDto> CreateNoteAsync(string content, CancellationToken ct = default) =>
-        SendAsync<NoteDto>(HttpMethod.Post, "/api/notes", new { content, source = "widget" }, ct);
+    public Task<NoteDto> CreateNoteAsync(string content, bool newPost = false, CancellationToken ct = default) =>
+        SendAsync<NoteDto>(
+            HttpMethod.Post,
+            "/api/notes",
+            newPost ? new { content, source = "widget", newPost = true } : (object)new { content, source = "widget" },
+            ct);
 
     public Task<TagPlacement> SetNoteTagsAsync(int noteId, IReadOnlyList<int> tagIds, CancellationToken ct = default) =>
         SendAsync<TagPlacement>(HttpMethod.Put, $"/api/notes/{noteId}/tags", new { tagIds }, ct);

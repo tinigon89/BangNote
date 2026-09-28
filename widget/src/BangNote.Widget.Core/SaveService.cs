@@ -19,25 +19,26 @@ public sealed class SaveService(OfflineQueue queue, Func<DateTimeOffset>? now = 
 
     public int Pending => queue.Count;
 
-    public async Task<SaveResult> SaveAsync(string text, CancellationToken ct = default)
+    /// <param name="newPost">Lưu thành bài mới (nút 📌 bật trước khi thả).</param>
+    public async Task<SaveResult> SaveAsync(string text, bool newPost = false, CancellationToken ct = default)
     {
         var content = text.Trim();
         if (content.Length == 0) return new SaveResult.Rejected("Nội dung trống");
         if (content.Length > MaxContent) return new SaveResult.Rejected($"Nội dung tối đa {MaxContent} ký tự");
 
         var api = Api;
-        if (api is null) return Enqueue(content, "Chưa cài đặt — đã giữ lại, sẽ gửi khi cài đặt xong");
+        if (api is null) return Enqueue(content, newPost, "Chưa cài đặt — đã giữ lại, sẽ gửi khi cài đặt xong");
         try
         {
-            return new SaveResult.Saved(await api.CreateNoteAsync(content, ct));
+            return new SaveResult.Saved(await api.CreateNoteAsync(content, newPost, ct));
         }
         catch (ApiUnavailableException)
         {
-            return Enqueue(content, null);
+            return Enqueue(content, newPost, null);
         }
         catch (ApiRejectedException ex) when (ex.StatusCode == 401)
         {
-            return Enqueue(content, "Sai API key — đã giữ lại, sẽ gửi khi sửa key");
+            return Enqueue(content, newPost, "Sai API key — đã giữ lại, sẽ gửi khi sửa key");
         }
         catch (ApiRejectedException ex) when (IsContentRejection(ex))
         {
@@ -45,16 +46,16 @@ public sealed class SaveService(OfflineQueue queue, Func<DateTimeOffset>? now = 
         }
         catch (ApiRejectedException ex)
         {
-            return Enqueue(content, $"Server từ chối ({ex.StatusCode}) — đã giữ lại, kiểm tra URL server");
+            return Enqueue(content, newPost, $"Server từ chối ({ex.StatusCode}) — đã giữ lại, kiểm tra URL server");
         }
     }
 
     /// <summary>Chỉ các mã này nghĩa là chính nội dung bị từ chối — gửi lại cũng vô ích. Mã 4xx khác (sai URL, bị chặn, rate limit) có thể tự hết.</summary>
     private static bool IsContentRejection(ApiRejectedException ex) => ex.StatusCode is 400 or 413 or 422;
 
-    private SaveResult.Queued Enqueue(string content, string? reason)
+    private SaveResult.Queued Enqueue(string content, bool newPost, string? reason)
     {
-        queue.Enqueue(new QueuedNote(content, _now()));
+        queue.Enqueue(new QueuedNote(content, _now(), newPost));
         return new SaveResult.Queued(queue.Count, reason);
     }
 
@@ -72,7 +73,7 @@ public sealed class SaveService(OfflineQueue queue, Func<DateTimeOffset>? now = 
             {
                 try
                 {
-                    await api.CreateNoteAsync(item.Content, ct);
+                    await api.CreateNoteAsync(item.Content, item.NewPost, ct);
                     queue.RemoveFirst();
                     sent++;
                 }
