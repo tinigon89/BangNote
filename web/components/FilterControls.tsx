@@ -2,15 +2,21 @@
 
 import { useState } from 'react';
 import { DATE_LABELS, DATE_MODES, DATE_PRESETS, type DateMode } from '@/lib/notes/dates';
-import { SORT_LABELS, type NoteFilters } from '@/lib/notes/filters';
+import { SORT_LABELS, defaultSort, type NoteFilters } from '@/lib/notes/filters';
 import { SORTS } from '@/lib/notes/notes';
 
 const submit = (el: HTMLElement) => el.closest('form')?.requestSubmit();
 const inputClass = 'rounded-lg border px-2 py-1';
 
-export function SortSelect({ value }: { value: NoteFilters['sort'] }) {
+/**
+ * "Mặc định" gửi `sort=` rỗng → server tự chọn (Theo số # khi lọc 1 tag, còn lại Mới nhất),
+ * nên đổi tag trong form không bị kẹt sort cũ trên URL.
+ */
+export function SortSelect({ filters }: { filters: NoteFilters }) {
+  const value = filters.sort === defaultSort(filters.tagIds) ? '' : filters.sort;
   return (
     <select name="sort" defaultValue={value} onChange={(e) => submit(e.currentTarget)} className={inputClass} aria-label="Sắp xếp">
+      <option value="">Mặc định</option>
       {SORTS.map((s) => (
         <option key={s} value={s}>
           {SORT_LABELS[s]}

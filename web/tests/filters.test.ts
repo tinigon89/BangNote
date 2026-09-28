@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_FILTERS, defaultSort, filtersToQuery, parseNoteFilters, toListFilter } from '@/lib/notes/filters';
+import { EMPTY_FILTERS, canReorder, defaultSort, filtersToQuery, parseNoteFilters, toListFilter } from '@/lib/notes/filters';
 
 describe('parseNoteFilters', () => {
   it('mặc định', () => {
@@ -83,5 +83,17 @@ describe('sort mặc định', () => {
   it('filtersToQuery bỏ sort khi bằng mặc định của bộ lọc đó, giữ khi khác', () => {
     expect(filtersToQuery({ ...EMPTY_FILTERS, tagIds: [2], sort: 'position' })).toBe('tag=2');
     expect(filtersToQuery({ ...EMPTY_FILTERS, tagIds: [2], sort: 'newest' })).toBe('tag=2&sort=newest');
+  });
+});
+
+describe('canReorder', () => {
+  it('chỉ khi lọc đúng 1 tag, sort theo số và không có tìm kiếm / nguồn / thời gian', () => {
+    const base = { ...EMPTY_FILTERS, tagIds: [2], sort: 'position' as const };
+    expect(canReorder(base)).toBe(true);
+    expect(canReorder({ ...base, sort: 'newest' })).toBe(false);
+    expect(canReorder({ ...base, tagIds: [2, 3] })).toBe(false);
+    expect(canReorder({ ...base, q: 'x' })).toBe(false);
+    expect(canReorder({ ...base, sources: ['web'] })).toBe(false);
+    expect(canReorder({ ...base, date: 'today' })).toBe(false);
   });
 });

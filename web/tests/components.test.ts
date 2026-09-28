@@ -92,3 +92,18 @@ describe('render trang Tag', () => {
     expect(html.match(/>Xoá</g)).toHaveLength(1);
   });
 });
+
+describe('ô sắp xếp trong bộ lọc', () => {
+  const html = (f: Partial<typeof EMPTY_FILTERS>) =>
+    renderToString(createElement(Filters, { tags: [DEF, LS], filters: { ...EMPTY_FILTERS, ...f } }));
+
+  it('sort đang bằng mặc định → chọn "Mặc định" (không ép sort lên URL khi bấm Lọc)', () => {
+    expect(html({ tagIds: [2], sort: 'position' })).toMatch(/<option value="" selected="">Mặc định/);
+    expect(html({})).toMatch(/<option value="" selected="">Mặc định/);
+  });
+
+  it('sort khác mặc định → giữ lựa chọn đó', () => {
+    expect(html({ tagIds: [2], sort: 'newest' })).toMatch(/<option value="newest" selected="">/);
+  });
+});
+

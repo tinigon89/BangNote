@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyRange, moveItem } from '@/lib/selection';
+import { applyRange } from '@/lib/selection';
 
 const ids = [10, 11, 12, 13, 14];
 const sorted = (s: Set<number>) => [...s].sort((a, b) => a - b);
@@ -27,14 +27,5 @@ describe('applyRange (kéo chọn / Shift+click)', () => {
     applyRange(ids, base, 11, 13, true);
     expect(sorted(base)).toEqual([10]);
     expect(sorted(applyRange(ids, base, 99, 13, true))).toEqual([10]);
-  });
-});
-
-describe('moveItem (kéo sắp xếp)', () => {
-  it('đưa phần tử tới vị trí của phần tử đích', () => {
-    expect(moveItem([1, 2, 3, 4], 1, 3)).toEqual([2, 3, 1, 4]);
-    expect(moveItem([1, 2, 3, 4], 4, 2)).toEqual([1, 4, 2, 3]);
-    expect(moveItem([1, 2, 3], 2, 2)).toEqual([1, 2, 3]);
-    expect(moveItem([1, 2, 3], 9, 2)).toEqual([1, 2, 3]);
   });
 });

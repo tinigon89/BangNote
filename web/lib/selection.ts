@@ -19,13 +19,3 @@ export function applyRange(
   }
   return next;
 }
-
-/** Đưa `fromId` tới vị trí hiện tại của `toId` (kéo sắp xếp). Id lạ → giữ nguyên. */
-export function moveItem(ids: number[], fromId: number, toId: number): number[] {
-  const from = ids.indexOf(fromId);
-  const to = ids.indexOf(toId);
-  if (from < 0 || to < 0 || from === to) return ids;
-  const next = ids.filter((id) => id !== fromId);
-  next.splice(to, 0, fromId);
-  return next;
-}

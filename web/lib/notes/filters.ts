@@ -52,6 +52,14 @@ export function defaultSort(tagIds: number[]): Sort {
   return tagIds.length === 1 ? 'position' : 'newest';
 }
 
+/**
+ * Kéo sắp xếp chỉ khi đang xem trọn một tag theo số: lọc thêm (tìm kiếm, nguồn, thời gian) sẽ ẩn bớt ghi chú,
+ * và đánh số lại theo phần đang hiện sẽ xáo trộn số của các ghi chú bị ẩn.
+ */
+export function canReorder(f: NoteFilters): boolean {
+  return f.tagIds.length === 1 && f.sort === 'position' && !f.q && !f.sources.length && !f.date;
+}
+
 type SearchParams = Record<string, string | string[] | undefined>;
 
 const all = (v: string | string[] | undefined): string[] => (v === undefined ? [] : Array.isArray(v) ? v : [v]);

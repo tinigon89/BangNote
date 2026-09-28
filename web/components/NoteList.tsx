@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { bulkMoveAction, deleteNotesAction, renumberAction, reorderAction } from '@/app/(admin)/actions';
 import { joinForCopy } from '@/lib/export/text';
 import type { Note, Tag } from '@/lib/notes/types';
-import { applyRange, moveItem } from '@/lib/selection';
+import { ReorderSession } from '@/lib/reorder';
+import { applyRange } from '@/lib/selection';
 import { NoteCard } from './NoteCard';
 import { TagPicker } from './TagPicker';
 
@@ -38,7 +39,7 @@ export function NoteList({
 
   // Thứ tự tạm trong lúc kéo sắp xếp; null = theo server.
   const [order, setOrder] = useState<number[] | null>(null);
-  const reorderRef = useRef<number | null>(null);
+  const reorderRef = useRef<ReorderSession | null>(null);
   useEffect(() => setOrder(null), [notes]);
   const byId = new Map(notes.map((n) => [n.id, n]));
   const shown = (order ?? notes.map((n) => n.id)).map((id) => byId.get(id)!).filter(Boolean);
@@ -71,11 +72,11 @@ export function NoteList({
     }
   };
 
-  const finishReorderRef = useRef<() => void>(() => undefined);
-  finishReorderRef.current = () => {
-    if (!singleTag || !order || order.every((id, i) => id === notes[i]?.id)) return;
+  // Đọc thứ tự từ ReorderSession (đồng bộ) chứ không từ state `order`, để thả nhanh vẫn lưu đúng.
+  const finishReorderRef = useRef<(next: number[] | null) => void>(() => undefined);
+  finishReorderRef.current = (next) => {
+    if (!singleTag || !next) return;
     const tagId = singleTag.id;
-    const next = order;
     startTransition(async () => {
       const res = await reorderAction(tagId, next);
       if (res.error) {
@@ -87,12 +88,15 @@ export function NoteList({
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
-      const moving = reorderRef.current;
-      if (moving !== null) {
+      const session = reorderRef.current;
+      if (session) {
         if (e.clientY < EDGE) window.scrollBy(0, -16);
         else if (e.clientY > window.innerHeight - EDGE) window.scrollBy(0, 16);
         const over = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-note-id]');
-        if (over) setOrder((prev) => moveItem(prev ?? idsRef.current, moving, Number(over.dataset.noteId)));
+        if (over) {
+          const rect = over.getBoundingClientRect();
+          setOrder([...session.over(Number(over.dataset.noteId), e.clientY > rect.top + rect.height / 2)]);
+        }
         return;
       }
       const drag = dragRef.current;
@@ -104,9 +108,10 @@ export function NoteList({
     };
     const onUp = () => {
       dragRef.current = null;
-      if (reorderRef.current !== null) {
+      const session = reorderRef.current;
+      if (session) {
         reorderRef.current = null;
-        finishReorderRef.current();
+        finishReorderRef.current(session.finish());
       }
     };
     window.addEventListener('pointermove', onMove);
@@ -135,8 +140,9 @@ export function NoteList({
   const startReorder = (id: number, e: React.PointerEvent) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    reorderRef.current = id;
-    setOrder(notes.map((n) => n.id));
+    const ids = notes.map((n) => n.id);
+    reorderRef.current = new ReorderSession(ids, id);
+    setOrder(ids);
   };
 
   const renumber = () => {
