@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers';
 import { Filters } from '@/components/Filters';
 import { NoteList } from '@/components/NoteList';
 import { Pager } from '@/components/Pager';
@@ -33,6 +34,9 @@ export default async function NotesPage({
     ? await listPostsPage(db, { ...toListFilter(filters), tagId: singleTag!.id }, filters.page, POSTS_PER_PAGE)
     : await listNotesPage(db, toListFilter(filters), filters.page, NOTES_PER_PAGE);
 
+  const collapsedRaw = singleTag ? (await cookies()).get(`bn-collapsed-${singleTag.id}`)?.value : undefined;
+  const initialCollapsed = (collapsedRaw ?? '').split('.').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+
   return (
     <div className="space-y-4">
       <QuickAdd tags={tags} />
@@ -46,6 +50,8 @@ export default async function NotesPage({
         grouped={grouped}
         sort={filters.sort}
         postsOnly={filters.posts}
+        hasPrevPage={result.page > 1}
+        initialCollapsed={initialCollapsed}
       />
       <Pager
         page={result.page}

@@ -29,7 +29,7 @@ const note: Note = {
 describe('render phía server của trang ghi chú', () => {
   it('lọc 1 tag + sort theo số → có nút Đánh số lại và tay nắm kéo', () => {
     const html = renderToString(
-      createElement(NoteList, { notes: [note], tags: [DEF, LS], exportQuery: 'tag=2', singleTag: LS, reorderable: true, grouped: false, sort: 'newest', postsOnly: false }),
+      createElement(NoteList, { notes: [note], tags: [DEF, LS], exportQuery: 'tag=2', singleTag: LS, reorderable: true, grouped: false, sort: 'newest', postsOnly: false, hasPrevPage: false, initialCollapsed: [] }),
     );
     expect(html).toContain('Đánh số lại');
     expect(html).toContain('⠿');
@@ -42,7 +42,7 @@ describe('render phía server của trang ghi chú', () => {
   });
 
   it('danh sách hiện nội dung, tag, nguồn, link', () => {
-    const html = renderToString(createElement(NoteList, { notes: [note], tags: [DEF, LS], exportQuery: 'tag=2', singleTag: null, reorderable: false, grouped: false, sort: 'newest', postsOnly: false })).replaceAll('<!-- -->', '');
+    const html = renderToString(createElement(NoteList, { notes: [note], tags: [DEF, LS], exportQuery: 'tag=2', singleTag: null, reorderable: false, grouped: false, sort: 'newest', postsOnly: false, hasPrevPage: false, initialCollapsed: [] })).replaceAll('<!-- -->', '');
     expect(html).toContain('Trận Bạch Đằng');
     expect(html).toContain('Lịch sử');
     expect(html).toContain('Lịch sử #3');
@@ -60,7 +60,7 @@ describe('render phía server của trang ghi chú', () => {
   });
 
   it('danh sách rỗng', () => {
-    expect(renderToString(createElement(NoteList, { notes: [], tags: [DEF], exportQuery: '', singleTag: null, reorderable: false, grouped: false, sort: 'newest', postsOnly: false }))).toContain('Không có ghi chú nào');
+    expect(renderToString(createElement(NoteList, { notes: [], tags: [DEF], exportQuery: '', singleTag: null, reorderable: false, grouped: false, sort: 'newest', postsOnly: false, hasPrevPage: false, initialCollapsed: [] }))).toContain('Không có ghi chú nào');
   });
 
   it('bộ lọc giữ trạng thái đã chọn; thêm nhanh chỉ hiện tag thật', () => {
@@ -122,7 +122,7 @@ describe('chế độ nhóm & phân trang', () => {
     renderToString(
       createElement(NoteList, {
         notes: [p, c1, c2], tags: [DEF, LS], exportQuery: 'tag=2', singleTag: LS, reorderable: true,
-        grouped: true, sort: 'position', postsOnly,
+        grouped: true, sort: 'position', postsOnly, hasPrevPage: true, initialCollapsed: [],
       }),
     ).replaceAll('<!-- -->', '');
 
@@ -148,5 +148,36 @@ describe('chế độ nhóm & phân trang', () => {
     expect(html).toContain('href="/?tag=2&amp;page=3"');
     expect(html).toContain('aria-current="page"');
     expect(renderToString(createElement(Pager, { page: 1, pageCount: 1, hrefFor: () => '/' }))).toBe('');
+  });
+});
+
+describe('↳, thu gọn từ cookie, ô "Chỉ hiện bài viết"', () => {
+  const g1 = [{ ...note, id: 30, position: 1, sub: 0, content: 'B1' }, { ...note, id: 31, position: 1, sub: 1, content: 'B1c' }];
+  const g2 = [{ ...note, id: 40, position: 2, sub: 0, content: 'B2' }];
+  const headless = [{ ...note, id: 50, position: 3, sub: 2, content: 'Mồ côi' }];
+  const render = (extra: Record<string, unknown>) =>
+    renderToString(
+      createElement(NoteList, {
+        notes: [...g1, ...g2, ...headless], tags: [DEF, LS], exportQuery: '', singleTag: LS, reorderable: true,
+        grouped: true, sort: 'position', postsOnly: false, hasPrevPage: false, initialCollapsed: [], ...extra,
+      }),
+    ).replaceAll('<!-- -->', '');
+
+  it('↳ chỉ trên bài có bài phía trước (và đầu nhóm mất bài); trang sau thì bài đầu cũng có', () => {
+    expect(render({}).match(/↳ Gộp vào bài trước/g)).toHaveLength(2);
+    expect(render({ hasPrevPage: true }).match(/↳ Gộp vào bài trước/g)).toHaveLength(3);
+  });
+
+  it('trạng thái thu gọn lấy từ server (cookie) nên không nháy khi tải trang', () => {
+    const html = render({ initialCollapsed: [30] });
+    expect(html).toContain('▸ 1 comment');
+    expect(html).not.toContain('B1c');
+  });
+
+  it('ô "Chỉ hiện bài viết" chỉ hiện khi đang xem theo nhóm', () => {
+    const f = (sort: 'position' | 'newest') =>
+      renderToString(createElement(Filters, { tags: [DEF, LS], filters: { ...EMPTY_FILTERS, tagIds: [2], sort } }));
+    expect(f('position')).toContain('name="posts"');
+    expect(f('newest')).not.toContain('name="posts"');
   });
 });

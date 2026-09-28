@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { SOURCES } from '@/lib/db/schema';
-import { SOURCE_LABELS, type NoteFilters } from '@/lib/notes/filters';
+import { SOURCE_LABELS, isGrouped, type NoteFilters } from '@/lib/notes/filters';
 import type { Tag } from '@/lib/notes/types';
-import { DateFilter, SortSelect } from './FilterControls';
+import { DateFilter, PostsOnlyToggle, SortSelect } from './FilterControls';
 
 /** Form GET thuần — bộ lọc nằm trên URL nên bookmark được. */
 export function Filters({ tags, filters }: { tags: Tag[]; filters: NoteFilters }) {
@@ -23,12 +23,7 @@ export function Filters({ tags, filters }: { tags: Tag[]; filters: NoteFilters }
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <SortSelect filters={filters} />
         <DateFilter filters={filters} />
-        {filters.tagIds.length === 1 && (
-          <label className="flex items-center gap-1" title="Thu gọn hết comment, chỉ hiện các bài">
-            <input type="checkbox" name="posts" value="1" defaultChecked={filters.posts} />
-            Chỉ hiện bài viết
-          </label>
-        )}
+        {isGrouped(filters) && <PostsOnlyToggle checked={filters.posts} />}
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
         {tags.map((tag) => (

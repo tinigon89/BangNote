@@ -72,6 +72,28 @@ async function getRef(db: DB, id: number): Promise<NoteRef> {
   return row;
 }
 
+/** Ghi chú đứng đầu nhóm (sub, id nhỏ nhất): bài, hoặc comment đầu của nhóm mất bài. */
+async function isGroupLead(db: DB, ref: NoteRef): Promise<boolean> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(notes)
+    .where(
+      and(
+        eq(notes.tagId, ref.tagId),
+        eq(notes.position, ref.position),
+        sql`(${notes.sub}, ${notes.id}) < (${ref.sub}::int, ${ref.id}::int)`,
+      ),
+    );
+  return row.n === 0;
+}
+
+/** Khoá tag của ghi chú rồi mới đọc lại, để thao tác bấm đúp không chạy trên dữ liệu cũ. */
+async function lockAndRead(db: DB, id: number): Promise<NoteRef> {
+  const first = await getRef(db, id);
+  await lockTag(db, first.tagId);
+  return getRef(db, id);
+}
+
 async function placementOf(db: DB, id: number): Promise<Placement> {
   const [row] = await db
     .select({ position: notes.position, sub: notes.sub, tag: tagColumns })
@@ -128,9 +150,8 @@ export async function moveNote(db: DB, noteId: number, tagId: number | null): Pr
 /** 📌 Bài mới: ghi chú (và các comment sau nó trong bài) thành bài mới cuối tag. Đã là bài → giữ nguyên. */
 export async function splitPost(db: DB, noteId: number): Promise<Placement> {
   return db.transaction(async (tx) => {
-    const note = await getRef(tx, noteId);
+    const note = await lockAndRead(tx, noteId);
     if (note.sub === 0) return placementOf(tx, noteId);
-    await lockTag(tx, note.tagId);
     const position = await nextPosition(tx, note.tagId);
     await tx.execute(sql`
       UPDATE notes n SET position = ${position}::int, sub = r.rn::int - 1
@@ -144,8 +165,10 @@ export async function splitPost(db: DB, noteId: number): Promise<Placement> {
 /** ↳ Gộp vào bài trước: cả nhóm của ghi chú thành các comment nối tiếp nhóm đứng ngay trước. */
 export async function mergeIntoPrevious(db: DB, noteId: number): Promise<Placement> {
   return db.transaction(async (tx) => {
-    const note = await getRef(tx, noteId);
-    await lockTag(tx, note.tagId);
+    const note = await lockAndRead(tx, noteId);
+    if (!(await isGroupLead(tx, note))) {
+      throw new DomainError('invalid', 'Chỉ gộp được cả bài — bấm ↳ trên bài, không phải trên comment');
+    }
     const [prev] = await tx
       .select({ position: sql<number | null>`max(${notes.position})::int` })
       .from(notes)
@@ -208,14 +231,14 @@ export async function renumberTag(db: DB, tagId: number, sort: Sort = 'position'
   });
 }
 
-/** Kéo thả: bài → cả nhóm tới trước/sau nhóm của `targetId`; comment → đổi chỗ trong nhóm của nó (khác nhóm → bỏ qua). */
+/** Kéo thả: đầu nhóm → cả nhóm tới trước/sau nhóm của `targetId`; comment → đổi chỗ trong nhóm của nó (khác nhóm → bỏ qua). */
 export async function dropNote(db: DB, movingId: number, targetId: number, after: boolean): Promise<void> {
   await db.transaction(async (tx) => {
-    const moving = await getRef(tx, movingId);
+    const moving = await lockAndRead(tx, movingId);
     const target = await getRef(tx, targetId);
     if (moving.tagId !== target.tagId) throw new DomainError('invalid', 'Chỉ sắp xếp được trong cùng một tag');
-    await lockTag(tx, moving.tagId);
-    if (moving.sub === 0) await reorderGroups(tx, moving.tagId, moving.position, target.position, after);
+    // Đầu nhóm (bài, hoặc comment đầu của nhóm mất bài) → di chuyển cả nhóm
+    if (await isGroupLead(tx, moving)) await reorderGroups(tx, moving.tagId, moving.position, target.position, after);
     else if (target.position === moving.position) await reorderComments(tx, moving, target, after);
   });
 }

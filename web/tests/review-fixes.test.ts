@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { splitNeedsConfirm } from '@/lib/groups';
+import { changeNeedsConfirm } from '@/lib/groups';
 import { noteIdsInput } from '@/lib/notes/validation';
 
 describe('📌 hỏi xác nhận', () => {
   it('không biết bao nhiêu ghi chú bị đổi (chế độ phẳng / đang lọc) → luôn hỏi', () => {
-    expect(splitNeedsConfirm(undefined)).toBe(true);
+    expect(changeNeedsConfirm(undefined)).toBe(true);
   });
   it('biết chính xác: chỉ hỏi khi > 1', () => {
-    expect(splitNeedsConfirm(1)).toBe(false);
-    expect(splitNeedsConfirm(3)).toBe(true);
+    expect(changeNeedsConfirm(1)).toBe(false);
+    expect(changeNeedsConfirm(3)).toBe(true);
   });
 });
 

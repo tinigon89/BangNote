@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { deleteNotesAction, mergePostAction, moveNoteAction, splitPostAction, updateNoteAction } from '@/app/(admin)/actions';
 import { formatRelative } from '@/lib/format';
 import { SOURCE_LABELS } from '@/lib/notes/filters';
-import { splitNeedsConfirm } from '@/lib/groups';
+import { changeNeedsConfirm } from '@/lib/groups';
 import { formatNumber } from '@/lib/notes/number';
 import type { Note, Tag } from '@/lib/notes/types';
 import { TagChip } from './TagChip';
@@ -20,6 +20,7 @@ export function NoteCard({
   onHandlePointerDown,
   collapse,
   affected,
+  canMerge,
 }: {
   note: Note;
   tags: Tag[];
@@ -35,6 +36,8 @@ export function NoteCard({
   collapse?: { collapsed: boolean; count: number; onToggle: () => void };
   /** Số ghi chú bị đổi số khi bấm 📌/↳ (để hỏi xác nhận khi > 1); không biết → coi như nhiều. */
   affected?: number;
+  /** Có nhóm đứng trước để ↳ gộp vào; không truyền → đoán theo số bài (> 1). */
+  canMerge?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -153,7 +156,7 @@ export function NoteCard({
           {note.sub > 0 && (
             <button
               onClick={() =>
-                (!splitNeedsConfirm(affected) || confirm(`Tách ${label} và các comment sau nó thành bài mới?`)) &&
+                (!changeNeedsConfirm(affected) || confirm(`Tách ${label} và các comment sau nó thành bài mới?`)) &&
                 run(() => splitPostAction(note.id))
               }
               className="hover:text-slate-900"
@@ -162,9 +165,12 @@ export function NoteCard({
               📌 Bài mới
             </button>
           )}
-          {note.sub === 0 && note.position > 1 && (
+          {(canMerge ?? (note.sub === 0 && note.position > 1)) && (
             <button
-              onClick={() => confirm(`Gộp bài ${label} (và comment của nó) vào bài trước?`) && run(() => mergePostAction(note.id))}
+              onClick={() =>
+                (!changeNeedsConfirm(affected) || confirm(`Gộp bài ${label} (và comment của nó) vào bài trước?`)) &&
+                run(() => mergePostAction(note.id))
+              }
               className="hover:text-slate-900"
               title="Biến bài này thành comment của bài trước"
             >

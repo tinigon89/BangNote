@@ -29,6 +29,8 @@ export function NoteList({
   grouped,
   sort,
   postsOnly,
+  hasPrevPage,
+  initialCollapsed,
 }: {
   notes: Note[];
   tags: Tag[];
@@ -42,6 +44,10 @@ export function NoteList({
   sort: Sort;
   /** "Chỉ hiện bài viết": thu gọn hết comment. */
   postsOnly: boolean;
+  /** Đang ở trang > 1 → bài đầu trang vẫn có bài phía trước (↳ gộp được). */
+  hasPrevPage: boolean;
+  /** Nhóm đang thu gọn, đọc từ cookie ở server. */
+  initialCollapsed: number[];
 }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [picking, setPicking] = useState(false);
@@ -54,33 +60,23 @@ export function NoteList({
   const groupsRef = useRef<NoteGroup[]>(groups);
   groupsRef.current = groups;
 
-  // ---- thu gọn (nhớ theo tag) ----
+  // ---- thu gọn (nhớ theo tag, trong cookie để server render đúng ngay lần đầu) ----
+  // Bình thường: `toggled` = các nhóm đang thu gọn. "Chỉ hiện bài viết": `toggled` = các nhóm đang MỞ.
   const collapseKey = singleTag ? `bn-collapsed-${singleTag.id}` : null;
-  // Tính ngay khi khởi tạo để render phía server cũng đúng với "Chỉ hiện bài viết"
-  const [collapsed, setCollapsed] = useState<Set<number>>(() => new Set(postsOnly ? groups.map((g) => g.lead) : []));
+  const [toggled, setToggled] = useState<Set<number>>(() => new Set(postsOnly ? [] : initialCollapsed));
   useEffect(() => {
-    if (postsOnly) {
-      setCollapsed(new Set(groupsRef.current.map((g) => g.lead)));
-      return;
-    }
-    try {
-      const raw = collapseKey ? localStorage.getItem(collapseKey) : null;
-      setCollapsed(new Set(raw ? (JSON.parse(raw) as number[]) : []));
-    } catch {
-      setCollapsed(new Set());
-    }
-  }, [collapseKey, postsOnly, notes]);
+    setToggled(new Set(postsOnly ? [] : initialCollapsed));
+    // chỉ khởi tạo lại khi đổi tag / đổi chế độ, không phải sau mỗi thao tác
+  }, [collapseKey, postsOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  const isCollapsed = (lead: number) => (postsOnly ? !toggled.has(lead) : toggled.has(lead));
   const toggleCollapse = (lead: number) => {
-    const next = new Set(collapsed);
+    const next = new Set(toggled);
     if (next.has(lead)) next.delete(lead);
     else next.add(lead);
-    setCollapsed(next);
+    setToggled(next);
     if (!postsOnly && collapseKey) {
-      try {
-        localStorage.setItem(collapseKey, JSON.stringify([...next]));
-      } catch {
-        // bỏ qua
-      }
+      const value = [...next].slice(-400).join('.');
+      document.cookie = `${collapseKey}=${value}; path=/; max-age=31536000; samesite=lax`;
     }
   };
 
@@ -100,7 +96,7 @@ export function NoteList({
     commentOrder?.lead === g.lead ? commentOrder.ids.map((id) => byId.get(id)!).filter(Boolean) : g.comments;
   const allNotes: Note[] = grouped ? orderedGroups.flatMap((g) => [...(g.post ? [g.post] : []), ...commentsOf(g)]) : notes;
   const shown: Note[] = grouped
-    ? orderedGroups.flatMap((g) => [...(g.post ? [g.post] : []), ...(collapsed.has(g.lead) && g.post ? [] : commentsOf(g))])
+    ? orderedGroups.flatMap((g) => [...(g.post ? [g.post] : []), ...(isCollapsed(g.lead) && g.post ? [] : commentsOf(g))])
     : notes;
 
   const visibleIds = shown.map((n) => n.id);
@@ -226,7 +222,8 @@ export function NoteList({
     e.preventDefault();
     const group = groups.find((g) => g.post?.id === note.id || g.comments.some((c) => c.id === note.id));
     if (!group) return;
-    if (note.sub === 0) {
+    // Đầu nhóm (bài, hoặc comment đầu của nhóm mất bài) → kéo cả nhóm
+    if (note.sub === 0 || (!group.post && group.lead === note.id)) {
       const leads = groups.map((g) => g.lead);
       reorderRef.current = { kind: 'post', session: new ReorderSession(leads, group.lead) };
       setGroupOrder(leads);
@@ -277,7 +274,10 @@ export function NoteList({
 
   if (!notes.length) return <p className="py-10 text-center text-slate-500">Không có ghi chú nào.</p>;
 
-  const card = (note: Note, extra: { collapse?: Parameters<typeof NoteCard>[0]['collapse']; affected?: number }) => (
+  const card = (
+    note: Note,
+    extra: { collapse?: Parameters<typeof NoteCard>[0]['collapse']; affected?: number; canMerge?: boolean },
+  ) => (
     <NoteCard
       key={`${note.id}-${note.updatedAt.getTime()}`}
       note={note}
@@ -355,23 +355,29 @@ export function NoteList({
         />
       )}
       {grouped
-        ? orderedGroups.map((g) => {
+        ? orderedGroups.map((g, gi) => {
             const comments = commentsOf(g);
-            const isCollapsed = collapsed.has(g.lead) && !!g.post;
+            const collapsedNow = isCollapsed(g.lead) && !!g.post;
+            const canMerge = gi > 0 || hasPrevPage;
             return (
               <div key={g.lead} data-group-lead={g.lead} className="space-y-2">
                 {g.post &&
                   card(g.post, {
                     collapse: comments.length
-                      ? { collapsed: isCollapsed, count: comments.length, onToggle: () => toggleCollapse(g.lead) }
+                      ? { collapsed: collapsedNow, count: comments.length, onToggle: () => toggleCollapse(g.lead) }
                       : undefined,
                     // Chỉ biết chính xác số ghi chú bị đổi khi xem trọn tag (không lọc thêm)
                     affected: reorderable ? 1 + comments.length : undefined,
+                    canMerge,
                   })}
-                {!isCollapsed &&
+                {!collapsedNow &&
                   comments.map((c, i) => (
                     <div key={c.id} className="ml-6 border-l-2 border-slate-200 pl-2 sm:ml-10">
-                      {card(c, { affected: reorderable ? comments.length - i : undefined })}
+                      {card(c, {
+                        affected: reorderable ? comments.length - i : undefined,
+                        // nhóm mất bài: comment đầu đại diện cả nhóm → gộp được
+                        canMerge: !g.post && i === 0 ? canMerge : false,
+                      })}
                     </div>
                   ))}
               </div>

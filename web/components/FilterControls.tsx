@@ -67,3 +67,13 @@ export function DateFilter({ filters }: { filters: NoteFilters }) {
     </span>
   );
 }
+
+/** "Chỉ hiện bài viết": thu gọn hết comment; tự lọc ngay khi bấm. */
+export function PostsOnlyToggle({ checked }: { checked: boolean }) {
+  return (
+    <label className="flex items-center gap-1" title="Thu gọn hết comment, chỉ hiện các bài">
+      <input type="checkbox" name="posts" value="1" defaultChecked={checked} onChange={(e) => submit(e.currentTarget)} />
+      Chỉ hiện bài viết
+    </label>
+  );
+}
