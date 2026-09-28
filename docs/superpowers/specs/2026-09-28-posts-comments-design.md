@@ -7,7 +7,7 @@ Ngày: 2026-09-28 · Trạng thái: chờ duyệt · Bổ sung cho `2026-09-28-t
 Luồng dùng thật: đọc một bài Facebook → gửi nội dung bài (một ghi chú) → gửi dần các comment (nhiều ghi chú) → sang bài khác. Cần:
 
 - Số thứ tự hai cấp trong mỗi tag: **bài** `#5`, **comment** `#5.1`, `#5.2`…
-- Mặc định ghi chú mới là **comment của bài mới nhất**; nút **📌 Bài mới** để mở bài mới.
+- Mặc định ghi chú mới là **comment của bài mới nhất**; tự mở **bài mới** khi đổi nguồn gửi hoặc đổi link; nút **📌 Bài mới** / ô **Là bài mới** để chủ động mở bài mới.
 - Xem theo nhóm (bài + comment thụt vào, thu gọn được), chọn cả bài bằng một tick.
 - Phân trang theo số trang, không giới hạn 500.
 
@@ -30,7 +30,7 @@ Hiển thị số: `sub = 0` → `#<position>`; `sub > 0` → `#<position>.<sub>
 
 | Hành động | Kết quả |
 |---|---|
-| Tạo ghi chú (mọi kênh) | Tag rỗng → bài `#1`. Ngược lại → comment của bài cuối: `sub = max(sub của nhóm) + 1` |
+| Tạo ghi chú (mọi kênh) | Thành **bài mới** (`position = max + 1`, `sub 0`) nếu một trong các điều kiện ở §3.1 đúng; ngược lại → comment của bài cuối: `sub = max(sub của nhóm) + 1` |
 | **📌 Bài mới** trên ghi chú X (thuộc nhóm P, sub s) | X và mọi ghi chú cùng nhóm có `sub > s` (theo thứ tự sub) thành nhóm mới `position = max(position trong tag) + 1`, X là bài (`sub 0`), các ghi chú sau là `.1, .2…`. X đã là bài → không đổi |
 | **↳ Gộp vào bài trước** trên bài P | Nhóm P (bài + comment, theo sub) nối vào cuối nhóm đứng ngay trước P (position lớn nhất < P) thành các comment tiếp theo. Không có nhóm trước → lỗi "Không có bài nào trước" |
 | Chuyển tag (một hoặc nhiều ghi chú) | Theo từng nhóm nguồn, theo thứ tự đang chọn: nếu chọn **bài** của nhóm → các ghi chú được chọn trong nhóm thành nhóm mới cuối tag đích (bài + .1…). Nếu chỉ chọn comment → chúng thành comment nối tiếp của bài cuối tag đích (tag đích rỗng → ghi chú đầu thành bài #1). Chuyển vào chính tag đang ở → không đổi |
@@ -38,6 +38,19 @@ Hiển thị số: `sub = 0` → `#<position>`; `sub > 0` → `#<position>.<sub>
 | **Đánh số lại** (một tag) | Chạy trên **toàn bộ tag**, theo sort đang chọn: nhóm được xếp theo ghi chú đầu tiên của nhóm theo sort đó, đánh 1…n; trong nhóm giữ thứ tự sub hiện tại, đánh 0, 1, 2… (nhóm mất bài → comment đầu thành bài) |
 | **Kéo bài** | Di chuyển cả nhóm tới trước/sau nhóm đích trên toàn tag, rồi đánh position 1…n cho mọi nhóm (sub không đổi) |
 | **Kéo comment** | Chỉ trong nhóm của nó: đặt trước/sau comment đích, đánh lại sub 1…k (bài giữ sub 0). Thả ra ngoài nhóm → bỏ qua |
+
+### 3.1 Khi nào ghi chú mới tự thành bài mới
+
+So với **ghi chú mốc** = ghi chú có `sub` lớn nhất trong bài cuối của tag đích (ghi chú được thêm vào bài đó gần nhất):
+
+1. Tag rỗng (không có ghi chú mốc).
+2. `source` khác ghi chú mốc (vd mốc là `web`, ghi chú mới từ `telegram`/`widget`/`extension`).
+3. Cùng `source`, cả hai có `sourceUrl`, và `postKey(url)` khác nhau.
+4. Người dùng chủ động: `newPost: true` (ô **Là bài mới** ở thêm nhanh trên web; API chấp nhận `newPost` tuỳ chọn).
+
+`postKey(url)`: `host` (bỏ `www.`/`m.`/`mobile.`) + `pathname` (bỏ `/` cuối) + chỉ giữ các tham số định danh `story_fbid`, `fbid`, `id`, `v` (sắp xếp theo tên); bỏ `#…` và mọi tham số khác (`comment_id`, `reply_comment_id`, `__cft__`, `__tn__`, `mibextid`, `rdid`, `share_url`…). URL không hợp lệ → dùng nguyên chuỗi đã trim.
+
+Tách nhầm → dùng **↳ Gộp vào bài trước**.
 
 Mọi thao tác đổi số khoá dòng tag (`lockTag`) trong transaction như hiện tại.
 
@@ -60,6 +73,8 @@ Kéo và nút tách/gộp chỉ bật khi `canReorder` (lọc đúng 1 tag, sort
 - Thanh `‹ 1 2 … 12 ›`: trang đầu, cuối, hiện tại ±2, dấu `…`; giữ mọi bộ lọc.
 - `page` vượt quá → hiện trang cuối có dữ liệu. Tham số `limit` cũ bị bỏ.
 
+**Thêm nhanh:** thêm ô **☐ Là bài mới** (gửi `newPost`).
+
 **Nút trên thẻ:** `📌 Bài mới` (trên comment), `↳ Gộp vào bài trước` (trên bài có nhóm trước). Có xác nhận khi thao tác đổi số của nhiều hơn 1 ghi chú.
 
 **Xuất file:** toàn bộ kết quả lọc (bỏ qua `page`, tối đa 5000 ghi chú), thứ tự như danh sách; số dạng `#5` / `#5.3`.
@@ -74,7 +89,8 @@ Kéo và nút tách/gộp chỉ bật khi `canReorder` (lọc đúng 1 tag, sort
 ## 6. Kiểm thử
 
 - Migration 0003: dữ liệu cũ → sub 0, số giữ nguyên.
-- `createNote`: tag rỗng → #1; tiếp theo → #1.1, #1.2; sau 📌 → nối vào bài mới.
+- `createNote`: tag rỗng → #1; cùng nguồn → #1.1, #1.2; đổi nguồn → bài mới; cùng nguồn khác link → bài mới; cùng link (khác `comment_id`) → comment; `newPost` → bài mới; sau 📌 → nối vào bài mới.
+- `postKey`: bỏ tham số phụ FB, giữ `story_fbid`/`id`/`v`, bỏ `www.`/`m.`, URL hỏng.
 - `splitPost`: tách giữa nhóm (kéo theo comment sau), trên bài → không đổi, giữ lock.
 - `mergeIntoPrevious`: nối cuối nhóm trước, không có nhóm trước → lỗi.
 - `moveNotes`: chọn cả nhóm / chỉ comment / tag đích rỗng / chính tag.
