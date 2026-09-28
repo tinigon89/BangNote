@@ -118,4 +118,19 @@ public class ApiClientTests
     [Fact]
     public void InvalidUrl_Throws() =>
         Assert.Throws<ArgumentException>(() => new ApiClient(new HttpClient(), "not a url", "k"));
+
+    [Fact]
+    public async Task NewPost_PostsToEndpoint_AndParsesPlacement()
+    {
+        var (client, handler) = Create((_, _) => Task.FromResult(Json(HttpStatusCode.OK,
+            """{"id":7,"tags":[{"id":1,"name":"Temp","color":"#94a3b8","isDefault":true}],"position":6,"sub":0}""")));
+
+        var placement = await client.NewPostAsync(7);
+
+        Assert.Equal(6, placement.Position);
+        Assert.Equal(0, placement.Sub);
+        var (request, _) = handler.Requests.Single();
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal("https://x.test/api/notes/7/new-post", request.RequestUri!.ToString());
+    }
 }

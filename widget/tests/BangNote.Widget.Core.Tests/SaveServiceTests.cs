@@ -18,6 +18,8 @@ public sealed class SaveServiceTests : IDisposable
 
         public Task<TagPlacement> SetNoteTagsAsync(int noteId, IReadOnlyList<int> tagIds, CancellationToken ct = default) =>
             throw new NotSupportedException();
+
+        public Task<TagPlacement> NewPostAsync(int noteId, CancellationToken ct = default) => throw new NotSupportedException();
     }
 
     private static Func<string, NoteDto> Offline => _ => throw new ApiUnavailableException("offline");

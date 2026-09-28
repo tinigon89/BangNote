@@ -145,6 +145,23 @@ public partial class MainWindow : Window
     private void RenderTags(NoteDto note, IReadOnlyList<TagDto> allTags)
     {
         TagPanel.Children.Clear();
+        if (note.Sub > 0)
+        {
+            var newPost = new Button
+            {
+                Content = "📌 Bài mới",
+                Margin = new Thickness(2),
+                Padding = new Thickness(6, 2, 6, 2),
+                FontSize = 11,
+                Foreground = Brushes.White,
+                Background = ParseBrush("#E6334155"),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                ToolTip = "Ghi chú này là nội dung bài viết mới",
+            };
+            newPost.Click += async (_, _) => await NewPostAsync();
+            TagPanel.Children.Add(newPost);
+        }
         var selected = note.Tags.Select(t => t.Id).ToHashSet();
         foreach (var tag in allTags)
         {
@@ -164,7 +181,25 @@ public partial class MainWindow : Window
             button.Click += async (_, _) => await ToggleTagAsync(tag);
             TagPanel.Children.Add(button);
         }
-        TagPanel.Visibility = allTags.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        TagPanel.Visibility = TagPanel.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private async Task NewPostAsync()
+    {
+        if (_lastNote is not { } note || _app.SaveService.Api is not { } api || _app.Tags is not { } cache) return;
+        RestartRevert(TimeSpan.FromSeconds(5));
+        try
+        {
+            var placement = await api.NewPostAsync(note.Id);
+            _lastNote = note with { Tags = placement.Tags, Position = placement.Position, Sub = placement.Sub };
+            StatusText.Text = NoteLabel.Saved(_lastNote);
+            RenderTags(_lastNote, cache.Current);
+            RestartRevert(TimeSpan.FromSeconds(5));
+        }
+        catch (Exception ex) when (ex is ApiUnavailableException or ApiRejectedException)
+        {
+            ShowMessage(ex.Message, ErrorBrush, TimeSpan.FromSeconds(3));
+        }
     }
 
     private async Task ToggleTagAsync(TagDto tag)
@@ -175,7 +210,7 @@ public partial class MainWindow : Window
         try
         {
             var placement = await api.SetNoteTagsAsync(note.Id, tagIds);
-            _lastNote = note with { Tags = placement.Tags, Position = placement.Position };
+            _lastNote = note with { Tags = placement.Tags, Position = placement.Position, Sub = placement.Sub };
             StatusText.Text = NoteLabel.Saved(_lastNote);
             RenderTags(_lastNote, cache.Current);
             RestartRevert(TimeSpan.FromSeconds(5));

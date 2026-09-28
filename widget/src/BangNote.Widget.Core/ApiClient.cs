@@ -29,6 +29,9 @@ public sealed class ApiClient : IApiClient
     public Task<TagPlacement> SetNoteTagsAsync(int noteId, IReadOnlyList<int> tagIds, CancellationToken ct = default) =>
         SendAsync<TagPlacement>(HttpMethod.Put, $"/api/notes/{noteId}/tags", new { tagIds }, ct);
 
+    public Task<TagPlacement> NewPostAsync(int noteId, CancellationToken ct = default) =>
+        SendAsync<TagPlacement>(HttpMethod.Post, $"/api/notes/{noteId}/new-post", null, ct);
+
     private async Task<T> SendAsync<T>(HttpMethod method, string path, object? body, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(method, _baseUrl + path);

@@ -24,4 +24,11 @@ public class NoteLabelTests
     [Fact]
     public void Pick_CurrentTag_NoRequest() =>
         Assert.Null(NoteLabel.TagIdsForPick(new NoteDto(9, "x", [Ls], 1), 2));
+
+    [Fact]
+    public void Saved_Comment_ShowsPostDotComment() =>
+        Assert.Equal("Đã lưu — Temp #5.3", NoteLabel.Saved(new NoteDto(9, "x", [Temp], 5, 3)));
+
+    [Fact]
+    public void Number_Formats() => Assert.Equal(("5", "5.2"), (NoteLabel.Number(5, 0), NoteLabel.Number(5, 2)));
 }
