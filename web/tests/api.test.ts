@@ -52,6 +52,12 @@ describe('GET /api/tags', () => {
 });
 
 describe('POST /api/notes', () => {
+  it('trả position theo tag', async () => {
+    const first = await (await postNote(req('POST', '/api/notes', { content: 'a', source: 'widget' }))).json();
+    const second = await (await postNote(req('POST', '/api/notes', { content: 'b', source: 'widget' }))).json();
+    expect([first.position, second.position]).toEqual([1, 2]);
+  });
+
   it('201 và gắn tag mặc định', async () => {
     const res = await postNote(req('POST', '/api/notes', { content: ' hello ', source: 'widget' }));
     expect(res.status).toBe(201);
@@ -114,6 +120,7 @@ describe('PUT /api/notes/:id/tags', () => {
     const body = await res.json();
     expect(body.id).toBe(1);
     expect(body.tags.map((x: { name: string }) => x.name)).toEqual(['Lịch sử']);
+    expect(body.position).toBe(1);
   });
 
   it('note không tồn tại → 404; id sai → 400; thiếu key → 401', async () => {

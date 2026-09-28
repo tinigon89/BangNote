@@ -29,8 +29,4 @@ export function parseCallbackData(data: string): CallbackAction | null {
   return null;
 }
 
-export function toggleTagIds(current: Tag[], tagId: number, defaultTagId: number): number[] {
-  if (tagId === defaultTagId) return [];
-  const real = current.filter((tag) => !tag.isDefault).map((tag) => tag.id);
-  return real.includes(tagId) ? real.filter((id) => id !== tagId) : [...real, tagId];
-}
+export const savedLabel = (tagName: string, position: number) => `${tagName} #${position}`;

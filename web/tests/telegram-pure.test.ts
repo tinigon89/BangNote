@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Tag } from '@/lib/notes/types';
 import { extractHashtags } from '@/lib/telegram/hashtags';
-import { buildNoteKeyboard, parseCallbackData, toggleTagIds } from '@/lib/telegram/keyboard';
+import { buildNoteKeyboard, parseCallbackData, savedLabel } from '@/lib/telegram/keyboard';
 
 const DEF: Tag = { id: 1, name: 'Chưa phân loại', color: '#94a3b8', isDefault: true };
 const LS: Tag = { id: 2, name: 'Lịch sử', color: '#ef4444', isDefault: false };
@@ -73,11 +73,8 @@ describe('parseCallbackData', () => {
   });
 });
 
-describe('toggleTagIds', () => {
-  it('bật/tắt tag thật, bấm tag mặc định thì xoá hết', () => {
-    expect(toggleTagIds([DEF], 2, 1)).toEqual([2]);
-    expect(toggleTagIds([LS], 3, 1)).toEqual([2, 3]);
-    expect(toggleTagIds([LS, YH], 2, 1)).toEqual([3]);
-    expect(toggleTagIds([LS, YH], 1, 1)).toEqual([]);
+describe('savedLabel', () => {
+  it('Tag #n', () => {
+    expect(savedLabel('Temp', 3)).toBe('Temp #3');
   });
 });

@@ -77,7 +77,7 @@ describe('tin nhắn', () => {
     expect(note.tags.map((x) => x.name)).toEqual(['Lịch sử']);
 
     const reply = calls('sendMessage')[0];
-    expect(reply.text).toBe(`✅ Đã lưu #${note.id}`);
+    expect(reply.text).toBe('✅ Đã lưu — Lịch sử #1');
     expect(reply.chat_id).toBe(OWNER);
     expect(reply.reply_parameters).toMatchObject({ message_id: 50 });
     expect(reply.reply_markup.inline_keyboard[0][1]).toEqual({
@@ -117,7 +117,16 @@ describe('tin nhắn', () => {
     await handleUpdate(t.db, msg('/tags'), config);
     expect(calls('sendMessage')[0].text).toBe('• Chưa phân loại (1)\n• Lịch sử (0)');
     await handleUpdate(t.db, msg('/recent'), config);
-    expect(calls('sendMessage')[1].text).toBe('#1 [Chưa phân loại]\nghi chú đầu');
+    expect(calls('sendMessage')[1].text).toBe('Chưa phân loại #1\nghi chú đầu');
+  });
+
+  it('khớp nhiều hashtag → gắn tag đầu, cảnh báo chỉ 1 tag', async () => {
+    await createTag(t.db, { name: 'Lịch sử' });
+    await createTag(t.db, { name: 'Y học' });
+    await handleUpdate(t.db, msg('#YHoc #LichSu nội dung'), config);
+    const [note] = (await listNotes(t.db)).notes;
+    expect(note.tags[0].name).toBe('Y học');
+    expect(calls('sendMessage')[0].text).toBe('✅ Đã lưu — Y học #1\n⚠️ Chỉ gắn 1 tag: Y học');
   });
 
   it('lỗi bất ngờ khi lưu → nhắn "❌ Lỗi khi lưu" và không ném ra ngoài', async () => {
@@ -130,34 +139,44 @@ describe('tin nhắn', () => {
 });
 
 describe('callback', () => {
-  it('bật tag → bỏ tag mặc định, cập nhật bàn phím', async () => {
+  it('bấm tag khác → chuyển tag, sửa tin nhắn thành "Tag #n" kèm bàn phím mới', async () => {
     const ls = await createTag(t.db, { name: 'Lịch sử' });
     const note = await createNote(t.db, { content: 'x', source: 'telegram' });
     await handleUpdate(t.db, cb(`t:${note.id}:${ls.id}`), config);
 
     expect((await getNote(t.db, note.id))!.tags.map((x) => x.name)).toEqual(['Lịch sử']);
-    const edit = calls('editMessageReplyMarkup')[0];
-    expect(edit).toMatchObject({ chat_id: OWNER, message_id: 60 });
+    const edit = calls('editMessageText')[0];
+    expect(edit).toMatchObject({ chat_id: OWNER, message_id: 60, text: '✅ Đã lưu — Lịch sử #1' });
     expect(edit.reply_markup.inline_keyboard[0][1].text).toBe('✓ Lịch sử');
-    expect(calls('answerCallbackQuery')[0]).toMatchObject({ callback_query_id: 'cq1', text: 'Lịch sử' });
+    expect(calls('answerCallbackQuery')[0]).toMatchObject({ callback_query_id: 'cq1', text: '→ Lịch sử #1' });
   });
 
-  it('bấm tag mặc định → về Chưa phân loại', async () => {
-    const ls = await createTag(t.db, { name: 'Lịch sử' });
+  it('bấm tag hiện tại → không đổi gì', async () => {
+    const note = await createNote(t.db, { content: 'x', source: 'telegram' });
     const def = await getDefaultTag(t.db);
-    const note = await createNote(t.db, { content: 'x', source: 'telegram', tagIds: [ls.id] });
     await handleUpdate(t.db, cb(`t:${note.id}:${def.id}`), config);
-    expect((await getNote(t.db, note.id))!.tags.map((x) => x.name)).toEqual(['Chưa phân loại']);
+    expect(calls('editMessageText')).toHaveLength(0);
+    expect(calls('answerCallbackQuery')[0]).toMatchObject({ text: 'Chưa phân loại #1' });
+  });
+
+  it('bấm nút của tag đã bị xoá → "Tag không còn", ghi chú giữ nguyên', async () => {
+    const ls = await createTag(t.db, { name: 'Lịch sử' });
+    const note = await createNote(t.db, { content: 'x', source: 'telegram', tagIds: [ls.id] });
+    await t.pg.query('UPDATE notes SET tag_id = (SELECT id FROM tags WHERE is_default) WHERE id = $1', [note.id]);
+    await t.pg.query('DELETE FROM tags WHERE id = $1', [ls.id]);
+    await handleUpdate(t.db, cb(`t:${note.id}:${ls.id}`), config);
+    expect(calls('answerCallbackQuery')[0]).toMatchObject({ text: 'Tag không còn' });
+    expect((await getNote(t.db, note.id))!.tags[0].name).toBe('Chưa phân loại');
   });
 
   it('"message is not modified" từ Telegram bị bỏ qua', async () => {
-    const def = await getDefaultTag(t.db);
+    const ls = await createTag(t.db, { name: 'Lịch sử' });
     const note = await createNote(t.db, { content: 'x', source: 'telegram' });
     tg.mockImplementation(async (method: string) => {
-      if (method === 'editMessageReplyMarkup') throw new Error('Telegram editMessageReplyMarkup: Bad Request: message is not modified');
+      if (method === 'editMessageText') throw new Error('Telegram editMessageText: Bad Request: message is not modified');
       return {};
     });
-    await expect(handleUpdate(t.db, cb(`t:${note.id}:${def.id}`), config)).resolves.toBeUndefined();
+    await expect(handleUpdate(t.db, cb(`t:${note.id}:${ls.id}`), config)).resolves.toBeUndefined();
     expect(calls('answerCallbackQuery')).toHaveLength(1);
   });
 
@@ -165,7 +184,7 @@ describe('callback', () => {
     const note = await createNote(t.db, { content: 'x', source: 'telegram' });
     await handleUpdate(t.db, cb(`d:${note.id}`), config);
     expect(await getNote(t.db, note.id)).toBeNull();
-    expect(calls('editMessageText')[0]).toMatchObject({ message_id: 60, text: `🗑 Đã xoá #${note.id}` });
+    expect(calls('editMessageText')[0]).toMatchObject({ message_id: 60, text: '🗑 Đã xoá' });
   });
 
   it('note không còn → trả lời "Ghi chú không còn"', async () => {

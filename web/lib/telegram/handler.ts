@@ -1,10 +1,10 @@
 import type { DB } from '@/lib/db/types';
 import { DomainError } from '@/lib/notes/errors';
 import { createNote, deleteNotes, getNote, listNotes } from '@/lib/notes/notes';
-import { getDefaultTag, listTags, listTagsWithCounts, setNoteTags } from '@/lib/notes/tags';
+import { listTags, listTagsWithCounts, moveNote } from '@/lib/notes/tags';
 import { callTelegram } from './api';
 import { extractHashtags } from './hashtags';
-import { buildNoteKeyboard, parseCallbackData, toggleTagIds } from './keyboard';
+import { buildNoteKeyboard, parseCallbackData, savedLabel } from './keyboard';
 import type { TgCallbackQuery, TgMessage, TgUpdate } from './types';
 
 export interface BotConfig {
@@ -49,7 +49,7 @@ async function handleMessage(db: DB, msg: TgMessage, config: BotConfig): Promise
     if (isCommand(text, 'recent')) {
       const { notes } = await listNotes(db, { limit: 5 });
       const body = notes
-        .map((n) => `#${n.id} [${n.tags.map((tag) => tag.name).join(', ')}]\n${truncate(n.content, 200)}`)
+        .map((n) => `${savedLabel(n.tags[0].name, n.position)}\n${truncate(n.content, 200)}`)
         .join('\n\n');
       await reply(body || 'Chưa có ghi chú nào');
       return;
@@ -66,9 +66,12 @@ async function handleMessage(db: DB, msg: TgMessage, config: BotConfig): Promise
       return;
     }
     const note = await createNote(db, { content, source: 'telegram', tagIds });
-    const warning = unknown.length ? `\n⚠️ Không có tag ${unknown.join(', ')}` : '';
-    await reply(`✅ Đã lưu #${note.id}${warning}`, {
-      reply_markup: buildNoteKeyboard(note.id, allTags, note.tags.map((tag) => tag.id)),
+    const warnings = [
+      ...(tagIds.length > 1 ? [`⚠️ Chỉ gắn 1 tag: ${note.tags[0].name}`] : []),
+      ...(unknown.length ? [`⚠️ Không có tag ${unknown.join(', ')}`] : []),
+    ];
+    await reply([`✅ Đã lưu — ${savedLabel(note.tags[0].name, note.position)}`, ...warnings].join('\n'), {
+      reply_markup: buildNoteKeyboard(note.id, allTags, [note.tags[0].id]),
     });
   } catch (err) {
     if (err instanceof DomainError) {
@@ -105,23 +108,32 @@ async function handleCallback(db: DB, cq: TgCallbackQuery, config: BotConfig): P
     await callTelegram('editMessageText', {
       chat_id: msg.chat.id,
       message_id: msg.message_id,
-      text: `🗑 Đã xoá #${note.id}`,
+      text: '🗑 Đã xoá',
     });
     await answer('Đã xoá');
     return;
   }
 
-  const def = await getDefaultTag(db);
-  const tags = await setNoteTags(db, note.id, toggleTagIds(note.tags, action.tagId, def.id));
+  const current = note.tags[0];
+  if (action.tagId === current.id) {
+    await answer(savedLabel(current.name, note.position));
+    return;
+  }
   const allTags = await listTags(db);
+  if (!allTags.some((tag) => tag.id === action.tagId)) {
+    await answer('Tag không còn');
+    return;
+  }
+  const { tag, position } = await moveNote(db, note.id, action.tagId);
   try {
-    await callTelegram('editMessageReplyMarkup', {
+    await callTelegram('editMessageText', {
       chat_id: msg.chat.id,
       message_id: msg.message_id,
-      reply_markup: buildNoteKeyboard(note.id, allTags, tags.map((tag) => tag.id)),
+      text: `✅ Đã lưu — ${savedLabel(tag.name, position)}`,
+      reply_markup: buildNoteKeyboard(note.id, allTags, [tag.id]),
     });
   } catch (err) {
     if (!(err instanceof Error && err.message.includes('message is not modified'))) throw err;
   }
-  await answer(tags.map((tag) => tag.name).join(', '));
+  await answer(`→ ${savedLabel(tag.name, position)}`);
 }
