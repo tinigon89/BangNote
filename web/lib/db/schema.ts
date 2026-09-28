@@ -20,6 +20,8 @@ export const notes = pgTable('notes', {
   tagId: integer('tag_id').notNull().references(() => tags.id),
   /** Số thứ tự trong tag (hiển thị "Tag #position"). */
   position: integer('position').notNull(),
+  /** 0 = bài; ≥ 1 = comment thứ `sub` của bài `position` (hiển thị "#position.sub"). */
+  sub: integer('sub').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

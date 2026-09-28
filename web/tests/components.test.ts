@@ -22,6 +22,7 @@ const note: Note = {
   updatedAt: new Date(),
   tags: [LS],
   position: 3,
+  sub: 0,
 };
 
 describe('render phía server của trang ghi chú', () => {

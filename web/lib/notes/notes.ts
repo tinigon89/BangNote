@@ -3,7 +3,8 @@ import { notes, tags, type Source } from '@/lib/db/schema';
 import type { DB } from '@/lib/db/types';
 import type { DateRange } from './dates';
 import { DomainError } from './errors';
-import { lockTag, moveNote, nextPosition, pickTagId, resolveTag, tagColumns } from './tags';
+import { lastAnchor, shouldStartPost, slotAfter } from './posts';
+import { lockTag, moveNote, pickTagId, resolveTag, tagColumns } from './tags';
 import type { Note } from './types';
 
 export const MAX_CONTENT = 20000;
@@ -19,6 +20,7 @@ export interface CreateNoteInput {
   tagIds?: number[];
   sourceUrl?: string | null;
   sourceTitle?: string | null;
+  newPost?: boolean;
 }
 
 export interface ListNotesFilter {
@@ -38,6 +40,7 @@ const noteColumns = {
   sourceUrl: notes.sourceUrl,
   sourceTitle: notes.sourceTitle,
   position: notes.position,
+  sub: notes.sub,
   createdAt: notes.createdAt,
   updatedAt: notes.updatedAt,
 };
@@ -62,7 +65,8 @@ export async function createNote(db: DB, input: CreateNoteInput): Promise<Note> 
   return db.transaction(async (tx) => {
     const tag = await resolveTag(tx, await pickTagId(tx, input.tagIds ?? []));
     await lockTag(tx, tag.id);
-    const position = await nextPosition(tx, tag.id);
+    const anchor = await lastAnchor(tx, tag.id);
+    const slot = slotAfter(anchor, shouldStartPost(anchor, input));
     const [row] = await tx
       .insert(notes)
       .values({
@@ -71,7 +75,8 @@ export async function createNote(db: DB, input: CreateNoteInput): Promise<Note> 
         sourceUrl: input.sourceUrl ?? null,
         sourceTitle: input.sourceTitle ?? null,
         tagId: tag.id,
-        position,
+        position: slot.position,
+        sub: slot.sub,
       })
       .returning(noteColumns);
     return { ...row, tags: [tag] };
@@ -104,7 +109,7 @@ export async function listNotes(db: DB, filter: ListNotesFilter = {}): Promise<{
       : filter.sort === 'updated'
         ? [desc(notes.updatedAt), desc(notes.id)]
         : filter.sort === 'position'
-          ? [asc(notes.tagId), asc(notes.position), asc(notes.id)]
+          ? [asc(notes.tagId), asc(notes.position), asc(notes.sub), asc(notes.id)]
           : [desc(notes.id)];
 
   const rows = await db

@@ -15,6 +15,7 @@ export const tagColumns = { id: tags.id, name: tags.name, color: tags.color, isD
 export interface Placement {
   tag: Tag;
   position: number;
+  sub: number;
 }
 
 export async function listTags(db: DB): Promise<Tag[]> {
@@ -82,11 +83,11 @@ export async function moveNote(db: DB, noteId: number, tagId: number | null): Pr
       .where(eq(notes.id, noteId));
     if (!note) throw new DomainError('not_found', 'Không tìm thấy ghi chú');
     const tag = await resolveTag(tx, tagId);
-    if (tag.id === note.tagId) return { tag, position: note.position };
+    if (tag.id === note.tagId) return { tag, position: note.position, sub: 0 };
     await lockTag(tx, tag.id);
     const position = await nextPosition(tx, tag.id);
     await tx.update(notes).set({ tagId: tag.id, position, updatedAt: new Date() }).where(eq(notes.id, noteId));
-    return { tag, position };
+    return { tag, position, sub: 0 };
   });
 }
 

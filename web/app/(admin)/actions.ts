@@ -32,6 +32,7 @@ export async function createNoteAction(_prev: ActionState, formData: FormData): 
     createNote(getDb(), {
       content: String(formData.get('content') ?? ''),
       source: 'web',
+      newPost: formData.get('newPost') === '1',
       tagIds: ids.parse(formData.getAll('tag').map(Number)),
     }),
   );

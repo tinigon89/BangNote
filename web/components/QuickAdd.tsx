@@ -27,6 +27,10 @@ export function QuickAdd({ tags }: { tags: Tag[] }) {
             {tag.name}
           </label>
         ))}
+        <label className="flex items-center gap-1 text-sm" title="Ghi chú này là nội dung bài viết mới (không phải comment)">
+          <input type="checkbox" name="newPost" value="1" />
+          Là bài mới
+        </label>
         <button
           disabled={pending}
           className="ml-auto rounded-lg bg-slate-900 px-4 py-1.5 text-sm text-white hover:bg-slate-700 disabled:opacity-50"

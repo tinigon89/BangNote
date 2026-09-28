@@ -18,6 +18,8 @@ export interface Note {
   tags: Tag[]; // luôn đúng 1 phần tử
   /** Số thứ tự trong tag của ghi chú (tags[0]). */
   position: number;
+  /** 0 = bài; ≥ 1 = comment của bài `position`. */
+  sub: number;
 }
 
 export function sortTags<T extends Tag>(list: T[]): T[] {

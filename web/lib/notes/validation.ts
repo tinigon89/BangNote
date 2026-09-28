@@ -15,6 +15,7 @@ export const createNoteBody = z.object({
   tagIds: tagIds.optional(),
   sourceUrl: truncated(2000),
   sourceTitle: truncated(500),
+  newPost: z.boolean().optional(),
 });
 
 export const setTagsBody = z.object({ tagIds });

@@ -186,7 +186,7 @@ describe('số thứ tự khi tạo / chuyển hàng loạt / sort theo số', (
   it('createNote cấp max + 1 trong tag, tag rỗng → 1 (kể cả sau khi xoá hết)', async () => {
     const ls = await createTag(t.db, { name: 'Lịch sử' });
     expect((await createNote(t.db, { content: 'a', source: 'web', tagIds: [ls.id] })).position).toBe(1);
-    const b = await createNote(t.db, { content: 'b', source: 'web', tagIds: [ls.id] });
+    const b = await createNote(t.db, { content: 'b', source: 'web', tagIds: [ls.id], newPost: true });
     expect(b.position).toBe(2);
     expect((await createNote(t.db, { content: 'c', source: 'web' })).position).toBe(1);
     await deleteNotes(t.db, (await listNotes(t.db, { tagIds: [ls.id] })).notes.map((n) => n.id));
@@ -203,8 +203,8 @@ describe('số thứ tự khi tạo / chuyển hàng loạt / sort theo số', (
   it('moveNotes: nối theo thứ tự truyền vào; ghi chú đã ở tag đích giữ số', async () => {
     const ls = await createTag(t.db, { name: 'Lịch sử' });
     const inLs = await createNote(t.db, { content: 'ls', source: 'web', tagIds: [ls.id] }); // LS #1
-    const a = await createNote(t.db, { content: 'a', source: 'web' });
-    const b = await createNote(t.db, { content: 'b', source: 'web' });
+    const a = await createNote(t.db, { content: 'a', source: 'web', newPost: true });
+    const b = await createNote(t.db, { content: 'b', source: 'web', newPost: true });
     await moveNotes(t.db, [b.id, inLs.id, a.id], ls.id);
     expect((await getNote(t.db, b.id))!.position).toBe(2);
     expect((await getNote(t.db, inLs.id))!.position).toBe(1);
@@ -214,7 +214,7 @@ describe('số thứ tự khi tạo / chuyển hàng loạt / sort theo số', (
   it("sort 'position' tăng dần theo số", async () => {
     const ls = await createTag(t.db, { name: 'Lịch sử' });
     const a = await createNote(t.db, { content: 'A', source: 'web', tagIds: [ls.id] });
-    await createNote(t.db, { content: 'B', source: 'web', tagIds: [ls.id] });
+    await createNote(t.db, { content: 'B', source: 'web', tagIds: [ls.id], newPost: true });
     await t.pg.query('UPDATE notes SET position = 9 WHERE id = $1', [a.id]);
     expect((await listNotes(t.db, { tagIds: [ls.id], sort: 'position' })).notes.map((n) => n.content)).toEqual(['B', 'A']);
   });
